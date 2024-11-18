@@ -13,6 +13,8 @@ namespace Microsoft.Maui.Platform
 		[UnconditionalSuppressMessage("Memory", "MEM0002", Justification = "Proven safe in test: MemoryTests.HandlerDoesNotLeak")]
 		readonly MauiLabel _placeholderLabel;
 		nfloat? _defaultPlaceholderSize;
+		private nfloat? _previousContentHeight;
+
 
 		public MauiTextView()
 		{
@@ -164,6 +166,33 @@ namespace Microsoft.Maui.Platform
 		{
 			var contentHeight = ContentSize.Height;
 			var availableSpace = Bounds.Height - contentHeight * ZoomScale;
+			var cursorRect = KeyboardAutoManagerScroll.FindCursorPosition();
+
+			// Detect if the content size has changed
+			var isContentChanged = _previousContentHeight.HasValue && _previousContentHeight.Value != contentHeight;
+			_previousContentHeight = contentHeight;
+
+			if (cursorRect.HasValue && ContentSize.Height > Frame.Height)
+			{
+				// Check if the cursor is beyond the visible frame
+				if (cursorRect.Value.Bottom > Frame.Bottom && isContentChanged)
+				{
+					var maxScrollOffset = ContentSize.Height * ZoomScale - Frame.Height;
+					var desiredOffset = ContentOffset.Y + (cursorRect.Value.Bottom - Frame.Bottom);
+					var newOffset = Math.Min(maxScrollOffset, desiredOffset);
+
+					// Adjust content offset only if the new offset exceeds the current one
+					if (newOffset > ContentOffset.Y)
+					{
+						SetContentOffset(new CGPoint(ContentOffset.X, newOffset), false);
+					}
+				}
+				else if (!isContentChanged && ContentOffset.Y > 0)
+				{
+					// Reset offset for manual scrolling if no content change occurred
+					ContentOffset = new CGPoint(ContentOffset.X, ContentOffset.Y);
+				}
+			}
 			if (availableSpace <= 0)
 				return;
 			ContentOffset = VerticalTextAlignment switch
