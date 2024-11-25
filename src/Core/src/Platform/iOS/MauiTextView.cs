@@ -187,11 +187,6 @@ namespace Microsoft.Maui.Platform
 						SetContentOffset(new CGPoint(ContentOffset.X, newOffset), false);
 					}
 				}
-				else if (!isContentChanged && ContentOffset.Y > 0)
-				{
-					// Reset offset for manual scrolling if no content change occurred
-					ContentOffset = new CGPoint(ContentOffset.X, ContentOffset.Y);
-				}
 			}
 			if (availableSpace <= 0)
 				return;
