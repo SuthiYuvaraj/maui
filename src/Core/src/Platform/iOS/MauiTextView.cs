@@ -185,7 +185,7 @@ namespace Microsoft.Maui.Platform
 						// Adjust content offset only if the new offset exceeds the current one
 						if (newOffset > ContentOffset.Y)
 						{
-							SetContentOffset(new CGPoint(ContentOffset.X, newOffset), false);
+							ContentOffset = new CGPoint(ContentOffset.X, newOffset);
 							return;
 						}
 					}
