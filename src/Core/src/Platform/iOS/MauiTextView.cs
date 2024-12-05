@@ -171,31 +171,35 @@ namespace Microsoft.Maui.Platform
 			// Detect if the content size has changed
 			var isContentChanged = _previousContentHeight.HasValue && _previousContentHeight.Value != contentHeight;
 			_previousContentHeight = contentHeight;
-
-			if (cursorRect.HasValue && ContentSize.Height > Frame.Height)
+			if (availableSpace <= 0)
 			{
-				// Check if the cursor is beyond the visible frame
-				if (cursorRect.Value.Bottom > Frame.Bottom && isContentChanged)
+				if (cursorRect.HasValue && ContentSize.Height > Frame.Height)
 				{
-					var maxScrollOffset = ContentSize.Height * ZoomScale - Frame.Height;
-					var desiredOffset = ContentOffset.Y + (cursorRect.Value.Bottom - Frame.Bottom);
-					var newOffset = Math.Min(maxScrollOffset, desiredOffset);
-
-					// Adjust content offset only if the new offset exceeds the current one
-					if (newOffset > ContentOffset.Y)
+					// Check if the cursor is beyond the visible frame
+					if (cursorRect.Value.Bottom > Frame.Bottom && isContentChanged)
 					{
-						SetContentOffset(new CGPoint(ContentOffset.X, newOffset), false);
+						var maxScrollOffset = ContentSize.Height * ZoomScale - Frame.Height;
+						var desiredOffset = ContentOffset.Y + (cursorRect.Value.Bottom - Frame.Bottom);
+						var newOffset = Math.Min(maxScrollOffset, desiredOffset);
+
+						// Adjust content offset only if the new offset exceeds the current one
+						if (newOffset > ContentOffset.Y)
+						{
+							SetContentOffset(new CGPoint(ContentOffset.X, newOffset), false);
+							return;
+						}
 					}
 				}
 			}
-			if (availableSpace <= 0)
-				return;
-			ContentOffset = VerticalTextAlignment switch
+			else
 			{
-				Maui.TextAlignment.Center => new CGPoint(0, -Math.Max(1, availableSpace / 2)),
-				Maui.TextAlignment.End => new CGPoint(0, -Math.Max(1, availableSpace)),
-				_ => ContentOffset,
-			};
+						ContentOffset = VerticalTextAlignment switch
+						{
+							Maui.TextAlignment.Center => new CGPoint(0, -Math.Max(1, availableSpace / 2)),
+							Maui.TextAlignment.End => new CGPoint(0, -Math.Max(1, availableSpace)),
+							_ => ContentOffset,
+						};
+			}
 		}
 
 		void UpdatePlaceholderFont(UIFont? value)
