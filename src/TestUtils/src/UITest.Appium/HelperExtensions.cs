@@ -1236,7 +1236,7 @@ namespace UITest.Appium
 			}
 
 			var response = app.CommandExecutor.Execute("getClipboardText", new Dictionary<string, object>());
-			
+
 			if (response?.Value != null)
 			{
 				return (string)response.Value;
@@ -1727,8 +1727,8 @@ namespace UITest.Appium
 				{ "enableSystemAnimations", enableSystemAnimations },
 			});
 		}
-    
-    /// <summary>
+
+		/// <summary>
 		/// Switch the state of data service.
 		/// Functionality that's only available on Android.
 		/// This API does not work for Android API level 21+ because it requires system or carrier privileged permission, 
@@ -1794,8 +1794,8 @@ namespace UITest.Appium
 			}
 
 			throw new InvalidOperationException($"Could not get the Android System Bars");
-	 }
-    
+		}
+
 		/// <summary>
 		/// Navigates back in the application by simulating a tap on the platform-specific back navigation button or using a custom identifier.
 		/// </summary>
@@ -1819,7 +1819,7 @@ namespace UITest.Appium
 		{
 			app.Tap(query);
 		}
-        
+
 		/// <summary>
 		/// Gets the default query for the back arrow button based on the app type.
 		/// </summary>
@@ -1867,7 +1867,7 @@ namespace UITest.Appium
 		/// <param name="timeout">Optional timeout for the wait operation. Default is null, which uses the default timeout.</param>
 		public static void WaitForElementTillPageNavigationSettled(this IApp app, string elementId, TimeSpan? timeout = null)
 		{
-			if(app is AppiumCatalystApp)
+			if (app is AppiumCatalystApp)
 				app.WaitForElement(AppiumQuery.ById(elementId), timeout: timeout);
 
 			app.WaitForElement(elementId, timeout: timeout);
@@ -1882,7 +1882,7 @@ namespace UITest.Appium
 		/// <param name="timeout">Optional timeout for the wait operation. Default is null, which uses the default timeout.</param>
 		public static void WaitForElementTillPageNavigationSettled(this IApp app, IQuery query, TimeSpan? timeout = null)
 		{
-			if(app is AppiumCatalystApp)
+			if (app is AppiumCatalystApp)
 				app.WaitForElement(query, timeout: timeout);
 
 			app.WaitForElement(query, timeout: timeout);
@@ -1896,17 +1896,19 @@ namespace UITest.Appium
 		/// <param name="isShell">Indicates whether the app is using Shell navigation (default is true).</param>
 		public static void WaitForFlyoutIcon(this IApp app, string automationId = "", bool isShell = true)
 		{
-			if(app is AppiumAndroidApp)
+			if (app is AppiumAndroidApp)
 			{
 				app.WaitForElement(AppiumQuery.ByXPath("//android.widget.ImageButton[@content-desc=\"Open navigation drawer\"]"));
 			}
 			else if (app is AppiumIOSApp || app is AppiumCatalystApp || app is AppiumWindowsApp)
 			{
-				if(isShell){
+				if (isShell)
+				{
 					app.WaitForElement("OK");
 				}
-				if (!isShell){		
-					if(app is AppiumWindowsApp)
+				if (!isShell)
+				{
+					if (app is AppiumWindowsApp)
 					{
 						app.WaitForElement(AppiumQuery.ByAccessibilityId("TogglePaneButton"));
 					}
@@ -1967,7 +1969,7 @@ namespace UITest.Appium
 				}
 				else
 				{
-					if(app is AppiumWindowsApp)
+					if (app is AppiumWindowsApp)
 					{
 						app.Tap(AppiumQuery.ByAccessibilityId("TogglePaneButton"));
 					}
