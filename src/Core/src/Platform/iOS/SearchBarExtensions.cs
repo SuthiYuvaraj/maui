@@ -7,7 +7,6 @@ namespace Microsoft.Maui.Platform
 {
 	public static class SearchBarExtensions
 	{
-		static UIColor? _defaultSearchIconTintColor;
 		internal static UITextField? GetSearchTextField(this UISearchBar searchBar)
 		{
 			if (OperatingSystem.IsIOSVersionAtLeast(13))
@@ -145,7 +144,6 @@ namespace Microsoft.Maui.Platform
 				if (cancelButton.TraitCollection.UserInterfaceIdiom == UIUserInterfaceIdiom.Mac)
 					cancelButton.TintColor = searchBar.CancelButtonColor.ToPlatform();
 			}
-			
 		}
 
 		internal static void UpdateSearchButton(this UISearchBar uiSearchBar, ISearchBar searchBar)
@@ -155,17 +153,12 @@ namespace Microsoft.Maui.Platform
 			if (textField?.LeftView is not UIImageView iconView || iconView.Image is null)
 				return;
 			
-			_defaultSearchIconTintColor ??= iconView.TintColor;
-
 			if (searchBar.SearchButtonColor is not null)
 			{
 				iconView.Image = iconView.Image.ImageWithRenderingMode(UIImageRenderingMode.AlwaysTemplate);
 				iconView.TintColor = searchBar.SearchButtonColor.ToPlatform();
 			}
 
-			else {
-				iconView.TintColor = _defaultSearchIconTintColor;
-			}
 		}
 
 		public static void UpdateIsTextPredictionEnabled(this UISearchBar uiSearchBar, ISearchBar searchBar, UITextField? textField = null)

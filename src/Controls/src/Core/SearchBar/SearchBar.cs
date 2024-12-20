@@ -79,7 +79,7 @@ namespace Microsoft.Maui.Controls
 			set { SetValue(CancelButtonColorProperty, value); }
 		}
 
-		/// <include file="../../docs/Microsoft.Maui.Controls/SearchBar.xml" path="//Member[@MemberName='SearchButtonColor']/Docs/*" />
+		/// Gets or sets the color of the search button icon in the <see cref="SearchBar"/>.
 		public Color SearchButtonColor
 		{
 			get { return (Color)GetValue(SearchButtonColorProperty); }
