@@ -118,7 +118,7 @@ namespace Microsoft.Maui.Platform
 			}
 		}
 
-		public static void UpdateSearchButtonColor(this SearchView searchView, ISearchBar searchBar)
+		internal static void UpdateSearchButtonColor(this SearchView searchView, ISearchBar searchBar)
 		{
 			if (searchView.Resources is null)
 				return;
