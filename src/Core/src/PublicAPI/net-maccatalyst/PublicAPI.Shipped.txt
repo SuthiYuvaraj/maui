@@ -2936,7 +2936,6 @@ static Microsoft.Maui.Platform.ScrollViewExtensions.UpdateHorizontalScrollBarVis
 static Microsoft.Maui.Platform.ScrollViewExtensions.UpdateIsEnabled(this UIKit.UIScrollView! nativeScrollView, Microsoft.Maui.IScrollView! scrollView) -> void
 static Microsoft.Maui.Platform.ScrollViewExtensions.UpdateVerticalScrollBarVisibility(this UIKit.UIScrollView! scrollView, Microsoft.Maui.ScrollBarVisibility scrollBarVisibility) -> void
 static Microsoft.Maui.Platform.SearchBarExtensions.UpdateCancelButton(this UIKit.UISearchBar! uiSearchBar, Microsoft.Maui.ISearchBar! searchBar) -> void
-static Microsoft.Maui.Platform.SearchBarExtensions.UpdateSearchButton(this UIKit.UISearchBar! uiSearchBar, Microsoft.Maui.ISearchBar! searchBar) -> void
 static Microsoft.Maui.Platform.SearchBarExtensions.UpdateFont(this UIKit.UISearchBar! uiSearchBar, Microsoft.Maui.ITextStyle! textStyle, Microsoft.Maui.IFontManager! fontManager, UIKit.UITextField? textField) -> void
 static Microsoft.Maui.Platform.SearchBarExtensions.UpdateFont(this UIKit.UISearchBar! uiSearchBar, Microsoft.Maui.ITextStyle! textStyle, Microsoft.Maui.IFontManager! fontManager) -> void
 static Microsoft.Maui.Platform.SearchBarExtensions.UpdateIsEnabled(this UIKit.UISearchBar! uiSearchBar, Microsoft.Maui.ISearchBar! searchBar) -> void
