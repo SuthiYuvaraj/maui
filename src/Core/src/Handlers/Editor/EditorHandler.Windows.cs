@@ -45,6 +45,26 @@ namespace Microsoft.Maui.Handlers
 			_set = false;
 		}
 
+		public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
+		{
+			// Handle infinite constraints by measuring the content size
+			if (double.IsInfinity(widthConstraint) || double.IsInfinity(heightConstraint))
+			{
+				// Measure the content size with no constraints
+				PlatformView.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+
+				// Replace infinite constraints with the measured size
+				widthConstraint = double.IsInfinity(widthConstraint) ? PlatformView.DesiredSize.Width : widthConstraint;
+				heightConstraint = double.IsInfinity(heightConstraint) ? PlatformView.DesiredSize.Height : heightConstraint;
+			}
+
+			// Measure the platform view with the given constraints
+			PlatformView.Measure(new global::Windows.Foundation.Size(widthConstraint, heightConstraint));
+
+			// Return the desired size based on the measured size
+			return new Size(PlatformView.DesiredSize.Width, PlatformView.DesiredSize.Height);
+		}
+
 		public static void MapText(IEditorHandler handler, IEditor editor) =>
 			handler.PlatformView?.UpdateText(editor);
 
