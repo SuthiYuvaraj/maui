@@ -370,7 +370,7 @@ namespace Microsoft.Maui.Controls
 			var label = (Label)bindable;
 
 			// Call the new HandleTextChanged method
-			//label.HandleTextChanged();
+			label.HandleTextChanged();
 
 			if (TextChangedShouldInvalidateMeasure(label))
 				label.InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
