@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Maui.Controls.Sample.Issues;
+﻿using Maui.Controls.Sample.Issues;
 
 [assembly: XamlCompilation(XamlCompilationOptions.Compile)]
 
@@ -11,47 +10,23 @@ namespace Maui.Controls.Sample
 		{
 			var appBuilder = MauiApp.CreateBuilder();
 
-#if IOS || ANDROID || MACCATALYST
+#if IOS || ANDROID
 			appBuilder.UseMauiMaps();
 #endif
 			appBuilder.UseMauiApp<App>()
 				.ConfigureFonts(fonts =>
 				{
-					fonts.AddEmbeddedResourceFont(typeof(MauiProgram).Assembly, "Dokdo-Regular.ttf", "Dokdo");
 					fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 					fonts.AddFont("FontAwesome.ttf", "FA");
 					fonts.AddFont("ionicons.ttf", "Ion");
-					fonts.AddFont("Montserrat-Bold.otf", "MontserratBold");
 				})
+				.ConfigureCollectionViewHandlers()
 				.RenderingPerformanceAddMappers()
 				.Issue21109AddMappers()
 				.Issue18720AddMappers()
 				.Issue18720EditorAddMappers()
 				.Issue18720DatePickerAddMappers()
-				.Issue18720TimePickerAddMappers()
-				.Issue25436RegisterNavigationService();
-
-#if IOS || MACCATALYST
-
-			appBuilder.ConfigureCollectionViewHandlers();
-
-#endif
-			// Register the custom handler
-			appBuilder.ConfigureMauiHandlers(handlers =>
-			{
-#if IOS || MACCATALYST || ANDROID || WINDOWS
-				handlers.AddHandler(typeof(_60122Image), typeof(_60122ImageHandler));
-				handlers.AddHandler(typeof(_57114View), typeof(_57114ViewHandler));
-#endif
-#if IOS || MACCATALYST
-				handlers.AddHandler(typeof(Issue11132Control), typeof(Issue11132ControlHandler));
-#endif
-#if IOS || MACCATALYST || ANDROID
-				handlers.AddHandler(typeof(UITestEditor), typeof(UITestEditorHandler));
-				handlers.AddHandler(typeof(UITestEntry), typeof(UITestEntryHandler));
-				handlers.AddHandler(typeof(UITestSearchBar), typeof(UITestSearchBarHandler));
-#endif
-			});
+				.Issue18720TimePickerAddMappers();
 
 			appBuilder.Services.AddTransient<TransientPage>();
 			appBuilder.Services.AddScoped<ScopedPage>();
@@ -94,19 +69,18 @@ namespace Maui.Controls.Sample
 			const int desktopWindowWidth = 1024;
 			const int desktopWindowHeight = 768;
 
-			var info = Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo;
-			int screenWidth = (int)(info.Width / info.Density);
-			int screenHeight = (int)(info.Height / info.Density);
-
 #if WINDOWS
 			window.Width = desktopWindowWidth;
 			window.Height = desktopWindowHeight;
+
+			var info = Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo;
+			int screenWidth = (int)(info.Width / info.Density);
+			int screenHeight = (int)(info.Height / info.Density);
 
 			// Center the window on the screen, to ensure no part of it goes off screen in CI
 			window.X = (screenWidth - desktopWindowWidth) / 2;
 			window.Y = (screenHeight - desktopWindowHeight) / 2;
 #elif MACCATALYST
-
 			// Setting max and min is currently needed to force the size on Catalyst;
 			// just setting width/height has no effect on Catalyst
 			window.MaximumWidth = desktopWindowWidth;
@@ -114,16 +88,11 @@ namespace Maui.Controls.Sample
 
 			window.MaximumHeight = desktopWindowHeight;
 			window.MinimumHeight = desktopWindowHeight;
-
-			// Setting X and Y without delay doesn't work on Catalyst, Issue: https://github.com/dotnet/maui/issues/27304 
-			window.Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(200), () =>
-			{
-				window.X = (screenWidth - desktopWindowWidth) / 2;
-				window.Y = (screenHeight - desktopWindowHeight) / 2;
-			});
 #endif
 
 #endif
+
+
 			return window;
 		}
 	}

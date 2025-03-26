@@ -6,14 +6,14 @@ using Foundation;
 namespace Maui.Controls.Sample
 {
 
-	class CollectionView1 : CollectionView { }
-	class CollectionView2 : CollectionView { }
+	class CollectionView1 : CollectionView{}
+	class CollectionView2 : CollectionView{}
 
 
-	class CarouselView1 : CarouselView { }
-	class CarouselView2 : CarouselView { }
+	class CarouselView1 : CarouselView{}
+	class CarouselView2 : CarouselView{}
 
-	public static partial class CollectionViewHostBuilderExtensions
+	public static partial class CollectionViewHostBuilderExtentions
 	{
 		/// <summary>
 		/// Configure the .NET MAUI app to listen for fold-related events
@@ -26,12 +26,11 @@ namespace Maui.Controls.Sample
 		/// </remarks>
 		public static MauiAppBuilder ConfigureCollectionViewHandlers(this MauiAppBuilder builder)
 		{
-
-#if IOS || MACCATALYST
-			builder.ConfigureMauiHandlers(handlers =>
+			#if IOS || MACCATALYST
+            builder.ConfigureMauiHandlers(handlers =>
 			{
-				bool cv2Handlers = false;
-				foreach (var en in NSProcessInfo.ProcessInfo.Environment)
+				bool cv2Handlers = true;
+				foreach(var en in NSProcessInfo.ProcessInfo.Environment)
 				{
 					if ($"{en.Key}" == "TEST_CONFIGURATION_ARGS")
 					{
@@ -60,7 +59,7 @@ namespace Maui.Controls.Sample
 				handlers.AddHandler<CollectionView2, Microsoft.Maui.Controls.Handlers.Items2.CollectionViewHandler2>();
 				handlers.AddHandler<CarouselView2, Microsoft.Maui.Controls.Handlers.Items2.CarouselViewHandler2>();
 			});
-#endif
+			#endif
 
 			return builder;
 		}
