@@ -263,6 +263,12 @@ namespace Microsoft.Maui.Controls
 			InvalidateMeasureIfLabelSizeable();
 		}
 
+		void HandleTextChanged()
+		{
+			Handler?.UpdateValue(nameof(IText.Text));
+			InvalidateMeasureIfLabelSizeable();
+		}
+
 		void ILineHeightElement.OnLineHeightChanged(double oldValue, double newValue) =>
 			InvalidateMeasureIfLabelSizeable();
 
@@ -362,6 +368,9 @@ namespace Microsoft.Maui.Controls
 		static void OnTextPropertyChanged(BindableObject bindable, object oldvalue, object newvalue)
 		{
 			var label = (Label)bindable;
+
+			// Call the new HandleTextChanged method
+			//label.HandleTextChanged();
 
 			if (TextChangedShouldInvalidateMeasure(label))
 				label.InvalidateMeasureInternal(InvalidationTrigger.MeasureChanged);
