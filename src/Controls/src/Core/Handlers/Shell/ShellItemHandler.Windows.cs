@@ -146,6 +146,7 @@ namespace Microsoft.Maui.Controls.Handlers
 
 		private void OnNavigationTabChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
 		{
+			bool canNavigate = false;
 			if (args.SelectedItem == null)
 				return;
 
@@ -164,10 +165,11 @@ namespace Microsoft.Maui.Controls.Handlers
 				}
 				if (PlatformView is NavigationView navView && navView?.SelectedItem is not null && navView.SelectedItem != currentItem)
 				{
-					((IShellItemController)shell.CurrentItem!).ProposeSection(shellSection);
+					canNavigate = ((IShellItemController)shell.CurrentItem!).ProposeSection(shellSection);
 				}
 
-				((Shell)VirtualView.Parent).CurrentItem = shellSection;
+				if (canNavigate)
+					((Shell)VirtualView.Parent).CurrentItem = shellSection;
 			}
 			else if (selectedItem.Data is ShellContent shellContent)
 			{
