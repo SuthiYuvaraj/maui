@@ -33,12 +33,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			base.ItemsViewPropertyChanged(sender, property);
 
-			if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderProperty))
+			if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderProperty) || property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderTemplateProperty))
 			{
 				UpdateHasHeader();
 				NotifyDataSetChanged();
 			}
-			else if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.FooterProperty))
+			else if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.FooterProperty) || property.Is(Microsoft.Maui.Controls.StructuredItemsView.FooterTemplateProperty))
 			{
 				UpdateHasFooter();
 				NotifyDataSetChanged();
@@ -83,9 +83,20 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				if (holder is TemplatedItemViewHolder templatedItemViewHolder)
 				{
-					BindTemplatedItemViewHolder(templatedItemViewHolder, ItemsView.Header);
+					BindTemplatedItemViewHolder(templatedItemViewHolder, ItemsView.HeaderTemplate);
 				}
-
+				else if (holder is SimpleViewHolder simpleViewHolder)
+				{
+					// Check if the ItemView is a TextView and update its text
+					if (simpleViewHolder.ItemView is Android.Widget.TextView textView)
+					{
+						textView.Text = ItemsView.Header.ToString(); // Replace "Updated Text" with the desired runtime value
+					}
+					else
+					{
+						simpleViewHolder.ItemView = CreateHeaderFooterViewHolder(ItemsView.Header, ItemsView.HeaderTemplate, holder.ItemView.Context).ItemView;
+					}
+				}
 				return;
 			}
 
@@ -94,6 +105,18 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				if (holder is TemplatedItemViewHolder templatedItemViewHolder)
 				{
 					BindTemplatedItemViewHolder(templatedItemViewHolder, ItemsView.Footer);
+				}
+				else if (holder is SimpleViewHolder simpleViewHolder)
+				{
+					// Check if the ItemView is a TextView and update its text
+					if (simpleViewHolder.ItemView is Android.Widget.TextView textView)
+					{
+						textView.Text = ItemsView.Footer.ToString(); // Replace "Updated Text" with the desired runtime value
+					}
+					else
+					{
+						simpleViewHolder.ItemView = CreateHeaderFooterViewHolder(ItemsView.Footer, ItemsView.FooterTemplate, holder.ItemView.Context).ItemView;
+					}
 				}
 
 				return;
@@ -104,6 +127,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		protected override void BindTemplatedItemViewHolder(TemplatedItemViewHolder templatedItemViewHolder, object context)
 		{
+			TemplatedItemViewHolder viewHolder;
 			if (ItemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 			{
 				templatedItemViewHolder.Bind(context, ItemsView, _reportMeasure, _size);
@@ -115,7 +139,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 			else
 			{
-				base.BindTemplatedItemViewHolder(templatedItemViewHolder, context);
+				if (context == ItemsView.Header || context == ItemsView.Footer || context == ItemsView.HeaderTemplate || context == ItemsView.FooterTemplate)
+				{
+					viewHolder = new TemplatedItemViewHolder(templatedItemViewHolder.ItemView as ItemContentView, ItemsView.HeaderTemplate, isSelectionEnabled: false);
+				}
+				else
+				{
+					viewHolder = templatedItemViewHolder;
+				}
+
+
+				base.BindTemplatedItemViewHolder(viewHolder, context);
 			}
 		}
 
