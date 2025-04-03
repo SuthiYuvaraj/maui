@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Controls
 
 		internal void UpdatePage(ContentPage page)
 		{
-			if (page.HideSoftInputOnTapped && page.HasNavigatedTo)
+			if (page.HideSoftInputOnTapped && (page.HasNavigatedTo || page is ContentPage))
 			{
 				if (!_contentPages.Contains(page))
 				{
