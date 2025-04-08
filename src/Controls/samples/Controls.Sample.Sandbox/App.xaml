@@ -8,6 +8,10 @@
             <ResourceDictionary.MergedDictionaries>
 
             </ResourceDictionary.MergedDictionaries>
+            <FontImageSource x:Key="IconFluent"
+                             Glyph="&#xe730;"
+                             FontFamily="MauiFluent"
+                             Color="{AppThemeBinding Dark=White, Light=Black}"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

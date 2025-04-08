@@ -1,4 +1,6 @@
-﻿namespace Maui.Controls.Sample;
+﻿using TextInputLayoutSample;
+
+namespace Maui.Controls.Sample;
 
 public partial class App : Application
 {

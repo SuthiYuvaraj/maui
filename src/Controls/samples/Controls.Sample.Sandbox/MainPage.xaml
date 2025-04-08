@@ -2,4 +2,38 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Maui.Controls.Sample.MainPage"
              xmlns:local="clr-namespace:Maui.Controls.Sample">
+
+    <Grid Padding="10"
+          RowDefinitions="*, *">
+        <Button Text="Click"
+                Grid.Row="0"
+                HeightRequest="50"
+                Clicked="OnButtonClicked"/>
+        <!-- Column 1: CollectionView -->
+        <CollectionView
+            Grid.Row="1"
+            Background="CadetBlue"
+            x:Name="collectionView"
+            ItemsSource="{Binding ItemsSource}"
+            AutomationId="CollectionViewControl">
+            <CollectionView.Header>
+
+                <Grid>
+                    <Label Text="Collection Header"
+                           FontSize="20"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"/>
+                </Grid>
+            </CollectionView.Header>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <StackLayout Padding="10">
+                        <Label Text="{Binding .}"
+                               FontSize="16"
+                               VerticalOptions="Center"/>
+                    </StackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
 </ContentPage>

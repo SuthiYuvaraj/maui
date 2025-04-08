@@ -88,7 +88,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				else if (holder is SimpleViewHolder simpleViewHolder)
 				{
 					// Check if the ItemView is a TextView and update its text
-					if (simpleViewHolder.ItemView is Android.Widget.TextView textView)
+					if (simpleViewHolder.ItemView is Android.Widget.TextView textView && ItemsView.Header is not null)
 					{
 						textView.Text = ItemsView.Header.ToString(); // Replace "Updated Text" with the desired runtime value
 					}
@@ -139,7 +139,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 			else
 			{
-				if (context == ItemsView.Header || context == ItemsView.Footer || context == ItemsView.HeaderTemplate || context == ItemsView.FooterTemplate)
+				if (context == ItemsView.HeaderTemplate || context == ItemsView.FooterTemplate)
 				{
 					viewHolder = new TemplatedItemViewHolder(templatedItemViewHolder.ItemView as ItemContentView, ItemsView.HeaderTemplate, isSelectionEnabled: false);
 				}

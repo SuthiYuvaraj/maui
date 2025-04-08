@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             xmlns:viewModels="clr-namespace:TextInputLayoutSample.ViewModels"
+             x:Class="TextInputLayoutSample.HomePage"
+             Title="HomePage">
+
+       <ContentPage.BindingContext>
+              <viewModels:AssessmentsViewModel x:Name="Root"/>
+       </ContentPage.BindingContext>
+
+       <VerticalStackLayout Spacing="10">
+              <Label Text="FontImageIcon:"
+                     HorizontalOptions="Center"/>
+
+              <Image WidthRequest="30"
+                     HeightRequest="30"
+                     Background="LightCoral"
+                     Source="{DynamicResource IconFluent}"/>
+
+              <Button Text="Toggle IsBusy"
+                      Command="{Binding ToggleIsBusyCommand}"
+                      WidthRequest="200"/>
+
+              <Button Text="Toggle Theme"
+                      Command="{Binding ToggleThemeCommand}"
+                      WidthRequest="200"/>
+
+              <Button WidthRequest="200"
+                      Text="Go to Details Page"
+                      Clicked="OnNavigateToDetailsClicked"
+                      HorizontalOptions="Center"/>
+
+       </VerticalStackLayout>
+
+</ContentPage>
