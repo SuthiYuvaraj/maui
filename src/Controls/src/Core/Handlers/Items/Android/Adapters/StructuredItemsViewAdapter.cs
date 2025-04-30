@@ -2,7 +2,6 @@
 using System;
 using System.ComponentModel;
 using Android.Content;
-using Microsoft.Maui.Controls;
 using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Graphics;
 using ViewGroup = Android.Views.ViewGroup;
@@ -19,8 +18,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		// I don't want this action to get GC'd
 		Action<Size> _reportMeasure;
 		Func<Size?> _retrieveStaticSize;
-
-		Context contextViewHolder;
 
 		protected internal StructuredItemsViewAdapter(TItemsView itemsView,
 			Func<View, Context, ItemContentView> createItemContentView = null) : base(itemsView, createItemContentView)
@@ -65,19 +62,13 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
 		{
-			var context = parent.Context;
-
-
 			if (viewType == ItemViewType.Header)
 			{
-				contextViewHolder = parent.Context;
 				return CreateHeaderFooterViewHolder(ItemsView.Header, ItemsView.HeaderTemplate, context);
-
 			}
 
 			if (viewType == ItemViewType.Footer)
 			{
-				contextViewHolder = parent.Context;
 				return CreateHeaderFooterViewHolder(ItemsView.Footer, ItemsView.FooterTemplate, context);
 			}
 
@@ -155,31 +146,29 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 					{
 						viewHolder = templatedItemViewHolder;
 					}
-
-
 					base.BindTemplatedItemViewHolder(viewHolder, context);
 				}
 			}
 
-		internal void UpdateHasHeader()
-		{
-			ItemsSource.HasHeader = (ItemsView.Header ?? ItemsView.HeaderTemplate) is not null;
-		}
+			void UpdateHasHeader()
+			{
+				ItemsSource.HasHeader = (ItemsView.Header ?? ItemsView.HeaderTemplate) is not null;
+			}
 
-		void UpdateHasFooter()
-		{
-			ItemsSource.HasFooter = (ItemsView.Footer ?? ItemsView.FooterTemplate) is not null;
-		}
+			void UpdateHasFooter()
+			{
+				ItemsSource.HasFooter = (ItemsView.Footer ?? ItemsView.FooterTemplate) is not null;
+			}
 
-		bool IsHeader(int position)
-		{
-			return ItemsSource.IsHeader(position);
-		}
+			bool IsHeader(int position)
+			{
+				return ItemsSource.IsHeader(position);
+			}
 
-		bool IsFooter(int position)
-		{
-			return ItemsSource.IsFooter(position);
-		}
+			bool IsFooter(int position)
+			{
+				return ItemsSource.IsFooter(position);
+			}
 
 		protected RecyclerView.ViewHolder CreateHeaderFooterViewHolder(object content, DataTemplate template, Context context)
 		{
