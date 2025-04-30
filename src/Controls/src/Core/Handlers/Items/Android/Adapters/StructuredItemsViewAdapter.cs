@@ -2,6 +2,7 @@
 using System;
 using System.ComponentModel;
 using Android.Content;
+using Microsoft.Maui.Controls;
 using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Graphics;
 using ViewGroup = Android.Views.ViewGroup;
@@ -19,6 +20,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		Action<Size> _reportMeasure;
 		Func<Size?> _retrieveStaticSize;
 
+		Context contextViewHolder;
+
 		protected internal StructuredItemsViewAdapter(TItemsView itemsView,
 			Func<View, Context, ItemContentView> createItemContentView = null) : base(itemsView, createItemContentView)
 		{
@@ -33,7 +36,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			base.ItemsViewPropertyChanged(sender, property);
 
-			if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderProperty) || property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderTemplateProperty))
+			if (property.Is(StructuredItemsView.HeaderProperty) || property.Is(StructuredItemsView.HeaderTemplateProperty))
 			{
 				UpdateHasHeader();
 				NotifyDataSetChanged();
@@ -64,13 +67,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			var context = parent.Context;
 
+
 			if (viewType == ItemViewType.Header)
 			{
+				contextViewHolder = parent.Context;
 				return CreateHeaderFooterViewHolder(ItemsView.Header, ItemsView.HeaderTemplate, context);
+
 			}
 
 			if (viewType == ItemViewType.Footer)
 			{
+				contextViewHolder = parent.Context;
 				return CreateHeaderFooterViewHolder(ItemsView.Footer, ItemsView.FooterTemplate, context);
 			}
 
@@ -81,21 +88,15 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			if (IsHeader(position))
 			{
+
 				if (holder is TemplatedItemViewHolder templatedItemViewHolder)
 				{
 					BindTemplatedItemViewHolder(templatedItemViewHolder, ItemsView.HeaderTemplate);
 				}
 				else if (holder is SimpleViewHolder simpleViewHolder)
 				{
-					// Check if the ItemView is a TextView and update its text
-					if (simpleViewHolder.ItemView is Android.Widget.TextView textView && ItemsView.Header is not null)
-					{
-						textView.Text = ItemsView.Header.ToString(); // Replace "Updated Text" with the desired runtime value
-					}
-					else
-					{
-						simpleViewHolder.ItemView = CreateHeaderFooterViewHolder(ItemsView.Header, ItemsView.HeaderTemplate, holder.ItemView.Context).ItemView;
-					}
+					var UpdatedHeader = CreateHeaderFooterViewHolder(ItemsView.Header, ItemsView.HeaderTemplate, holder.ItemView.Context);
+					simpleViewHolder.ItemView = UpdatedHeader.ItemView;
 				}
 				return;
 			}
@@ -139,21 +140,28 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 			else
 			{
-				if (context == ItemsView.HeaderTemplate || context == ItemsView.FooterTemplate)
+				TemplatedItemViewHolder viewHolder = templatedItemViewHolder;
+				if (templatedItemViewHolder._selectedTemplate != null && context != templatedItemViewHolder._selectedTemplate)
 				{
-					viewHolder = new TemplatedItemViewHolder(templatedItemViewHolder.ItemView as ItemContentView, ItemsView.HeaderTemplate, isSelectionEnabled: false);
-				}
-				else
-				{
-					viewHolder = templatedItemViewHolder;
-				}
+					if (context == ItemsView.HeaderTemplate)
+					{
+						viewHolder = new TemplatedItemViewHolder(templatedItemViewHolder.ItemView as ItemContentView, ItemsView.HeaderTemplate, isSelectionEnabled: false);
+					}
+					else if (context == ItemsView.FooterTemplate)
+					{
+						viewHolder = new TemplatedItemViewHolder(templatedItemViewHolder.ItemView as ItemContentView, ItemsView.FooterTemplate, isSelectionEnabled: false);
+					}
+					else
+					{
+						viewHolder = templatedItemViewHolder;
+					}
 
 
-				base.BindTemplatedItemViewHolder(viewHolder, context);
+					base.BindTemplatedItemViewHolder(viewHolder, context);
+				}
 			}
-		}
 
-		void UpdateHasHeader()
+		internal void UpdateHasHeader()
 		{
 			ItemsSource.HasHeader = (ItemsView.Header ?? ItemsView.HeaderTemplate) is not null;
 		}
