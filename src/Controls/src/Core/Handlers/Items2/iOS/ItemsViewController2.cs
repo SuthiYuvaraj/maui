@@ -118,6 +118,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				TemplatedCell2.ScrollDirection = ScrollDirection;
 
 				TemplatedCell2.Bind(ItemsView.ItemTemplate, ItemsSource[indexpathAdjusted], ItemsView);
+
+				if ((ItemsView as CollectionView).ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+				{
+					// If the cell is not already measured, measure it and cache the size
+					// This is only done for the first item in the collection
+					var FirstItemSize = DetermineCellSize(TemplatedCell2, indexPath);
+					if (FirstItemSize != CGSize.Empty)
+					{
+						TemplatedCell2.firstItemSize = FirstItemSize.ToSize();
+					}
+				}
 			}
 			else if (cell is DefaultCell2 DefaultCell2)
 			{
@@ -262,6 +273,24 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			CollectionView.SetCollectionViewLayout(ItemsViewLayout, false);
 
 			UpdateEmptyView();
+
+		}
+		// Cache for the first item's measured size
+		CGSize _firstItemMeasuredSize = CGSize.Empty;
+
+		// Measures and caches the size of the first item using the provided TemplatedCell2.
+		private CGSize DetermineCellSize(TemplatedCell2 templatedCell2, NSIndexPath indexPath)
+		{
+			var collectionView = ItemsView as CollectionView;
+			if (collectionView?.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem && ItemsSource?.ItemCount > 0)
+			{
+				if (indexPath.Item == 0)
+				{
+					_firstItemMeasuredSize = templatedCell2.Frame.Size;
+				}
+				return _firstItemMeasuredSize;
+			}
+			return _firstItemMeasuredSize;
 		}
 
 		protected virtual UICollectionViewDelegateFlowLayout CreateDelegator()

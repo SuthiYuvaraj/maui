@@ -40,6 +40,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		Size _measuredSize;
 		Size _cachedConstraints;
 
+		internal Size firstItemSize;
+
 		internal bool MeasureInvalidated => _measureInvalidated;
 
 		// Flags changes confined to the header/footer, preventing unnecessary recycling and revalidation of templated cells.
@@ -95,7 +97,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				{
 					if (PlatformHandler?.VirtualView is View view && view.Parent is CollectionView itemsView && itemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 					{
-						_measuredSize = view.Measure(preferredAttributes.Size.Width, preferredAttributes.Size.Height);
+						if (layoutAttributes.IndexPath.Item == 0)
+						{
+							// For the first item, measure and update firstItemSize
+							_measuredSize = virtualView.Measure(constraints.Width, constraints.Height);
+						}
+						else if (!firstItemSize.IsZero)
+						{
+							// For subsequent items, use the cached firstItemSize
+							_measuredSize = firstItemSize;
+						}
 					}
 					else
 					{
