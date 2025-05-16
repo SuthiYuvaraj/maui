@@ -8,7 +8,7 @@ public class Issue29130 : ContentPage
 	CollectionView2 collectionView;
 	public Issue29130()
 	{
-		var viewModel = new CollectionViewViewModel();
+		var viewModel = new Issue29130ViewModel();
 		this.BindingContext = viewModel;
 
 		var measureFirstItemButton = new Button
@@ -85,7 +85,7 @@ public class Issue29130 : ContentPage
 		}
 	}
 }
-public class CollectionViewViewModel
+public class Issue29130ViewModel
 
 {
 	public ObservableCollection<ItemModel> Items { get; } = new()
@@ -109,5 +109,4 @@ public class ItemModel
 		Text = text;
 		FontSize = fontSize;
 	}
-
 }
