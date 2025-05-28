@@ -20,10 +20,10 @@ namespace Microsoft.Maui.Handlers
 			[nameof(IRadioButton.Background)] = MapBackground,
 #endif
 			[nameof(IRadioButton.IsChecked)] = MapIsChecked,
-			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
+			[nameof(IRadioButton.Content)] = MapContent,
 			[nameof(ITextStyle.Font)] = MapFont,
 			[nameof(ITextStyle.TextColor)] = MapTextColor,
-			[nameof(IRadioButton.Content)] = MapContent,
+			[nameof(ITextStyle.CharacterSpacing)] = MapCharacterSpacing,
 			[nameof(IRadioButton.StrokeColor)] = MapStrokeColor,
 			[nameof(IRadioButton.StrokeThickness)] = MapStrokeThickness,
 			[nameof(IRadioButton.CornerRadius)] = MapCornerRadius,

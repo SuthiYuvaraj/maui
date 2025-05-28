@@ -153,7 +153,18 @@ namespace Microsoft.Maui.Platform
 			platformButton.CharacterSpacing = characterSpacing;
 
 			if (platformButton.GetContent<TextBlock>() is TextBlock textBlock)
+			{
 				textBlock.CharacterSpacing = characterSpacing;
+			}
+			else if (platformButton.Content is string str)
+			{
+				var newTextBlock = new TextBlock
+				{
+					Text = str,
+					CharacterSpacing = characterSpacing
+				};
+				platformButton.Content = newTextBlock;
+			}
 		}
 
 		public static void UpdateImageSource(this Button platformButton, WImageSource? nativeImageSource)
