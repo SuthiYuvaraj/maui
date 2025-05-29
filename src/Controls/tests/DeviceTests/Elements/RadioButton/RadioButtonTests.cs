@@ -3,7 +3,11 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Xaml;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Hosting;
+using Microsoft.Maui.Platform;
 using Xunit;
+#if WINDOWS
+using Microsoft.UI.Xaml.Controls;
+#endif
 
 namespace Microsoft.Maui.DeviceTests
 {
@@ -51,6 +55,34 @@ namespace Microsoft.Maui.DeviceTests
 				Assert.Equal(expectedValue, valuesFirst.PlatformViewValue);
 				Assert.Equal(xplatIsChecked, valuesSecond.ViewValue);
 				Assert.Equal(expectedValue, valuesSecond.PlatformViewValue);
+			});
+		}
+
+       [Fact(DisplayName = "CharacterSpacing is applied to TextBlock when Content is string")]
+		public async Task CharacterSpacing_AppliesToTextBlock_WhenContentIsString()
+		{
+			const string testContent = "Test Content";
+			const double characterSpacing = 2.0;
+
+			var radioButton = new RadioButton
+			{
+				Content = testContent,
+				CharacterSpacing = characterSpacing
+			};
+
+			await InvokeOnMainThreadAsync(async () =>
+			{
+				var handler = CreateHandler(radioButton);
+				// Force property mapping
+				handler.UpdateValue(nameof(IRadioButton.Content));
+				handler.UpdateValue(nameof(ITextStyle.CharacterSpacing));
+
+				var platformRadioButton = GetNativeRadioButton(handler);
+				var textBlock = platformRadioButton.Content as TextBlock;
+
+				Assert.NotNull(textBlock);
+				Assert.Equal(testContent, textBlock.Text);
+				Assert.Equal(characterSpacing.ToEm(), textBlock.CharacterSpacing);
 			});
 		}
 #endif
