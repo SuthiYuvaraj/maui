@@ -3,11 +3,7 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Controls.Xaml;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Hosting;
-using Microsoft.Maui.Platform;
 using Xunit;
-#if WINDOWS
-using Microsoft.UI.Xaml.Controls;
-#endif
 
 namespace Microsoft.Maui.DeviceTests
 {
