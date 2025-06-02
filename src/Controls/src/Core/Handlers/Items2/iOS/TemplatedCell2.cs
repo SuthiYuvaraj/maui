@@ -1,6 +1,8 @@
 #nullable disable
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Controls.Internals;
@@ -76,50 +78,87 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 			if (PlatformHandler?.VirtualView is View view)
 			{
-				//view.MeasureInvalidated -= MeasureInvalidated;
+				// If this is a CollectionView using MeasureFirstItem, clear its cached size
+				// when unbinding to ensure we remeasure when the collection is refreshed
+				if (view.Parent is CollectionView collectionView &&
+				collectionView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+				{
+					_firstItemMeasurements.Remove(collectionView);
+				}
+
 				view.BindingContext = null;
 				(view.Parent as ItemsView)?.RemoveLogicalChild(view);
 			}
 		}
 
+		// Static cache for first item measurements, shared across all cells
+		private static readonly ConditionalWeakTable<CollectionView, MeasurementHolder> _firstItemMeasurements = new();
+
+		private class MeasurementHolder
+		{
+			public Size Size;
+		}
+
+
 		public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(
 			UICollectionViewLayoutAttributes layoutAttributes)
 		{
-			var preferredAttributes = base.PreferredLayoutAttributesFittingAttributes(layoutAttributes);
+			var attributes = base.PreferredLayoutAttributesFittingAttributes(layoutAttributes);
 
-			if (PlatformHandler?.VirtualView is { } virtualView)
+			if (PlatformHandler?.VirtualView is not View view)
+				return attributes;
+
+			var constraints = GetMeasureConstraints(attributes);
+			Size measure;
+
+			if (view.Parent is CollectionView itemsView && itemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 			{
-				var constraints = GetMeasureConstraints(preferredAttributes);
+				var indexPath = layoutAttributes.IndexPath;
+				var isFirstItem = indexPath.Section == 0 && indexPath.Item == 0;
 
-				if (_measureInvalidated || _cachedConstraints != constraints)
+				MeasurementHolder holder;
+				if (isFirstItem || !_firstItemMeasurements.TryGetValue(itemsView, out holder))
 				{
-					var measure = virtualView.Measure(constraints.Width, constraints.Height);
-					_cachedConstraints = constraints;
-					_measuredSize = measure;
-					_needsArrange = true;
+					measure = view.Measure(constraints.Width, constraints.Height);
+					holder = _firstItemMeasurements.GetOrCreateValue(itemsView);
+					holder.Size = measure;
 				}
-
-				var preferredSize = preferredAttributes.Size;
-				// Use measured size only when unconstrained
-				var size = new Size(
-					double.IsPositiveInfinity(constraints.Width) ? _measuredSize.Width : preferredSize.Width,
-					double.IsPositiveInfinity(constraints.Height) ? _measuredSize.Height : preferredSize.Height
-				);
-
-				preferredAttributes.Frame = new CGRect(preferredAttributes.Frame.Location, size);
-				preferredAttributes.ZIndex = 2;
-
-				_measureInvalidated = false;
+				else
+				{
+					measure = holder.Size;
+				}
+			}
+			else if (_measureInvalidated || _cachedConstraints != constraints)
+			{
+				measure = view.Measure(constraints.Width, constraints.Height);
+				_cachedConstraints = constraints;
+				_measuredSize = measure;
+			}
+			else
+			{
+				measure = _measuredSize;
 			}
 
-			return preferredAttributes;
+			var preferredSize = attributes.Size;
+			var size = new Size(
+				double.IsPositiveInfinity(constraints.Width) ? measure.Width : preferredSize.Width,
+				double.IsPositiveInfinity(constraints.Height) ? measure.Height : preferredSize.Height
+			);
+
+			attributes.Frame = new CGRect(attributes.Frame.Location, size);
+			attributes.ZIndex = 2;
+
+			_needsArrange = true;
+			_measureInvalidated = false;
+
+			return attributes;
 		}
 
-		private protected virtual Size GetMeasureConstraints(UICollectionViewLayoutAttributes preferredAttributes)
+		private protected virtual Size GetMeasureConstraints(UICollectionViewLayoutAttributes attributes)
 		{
 			var constraints = ScrollDirection == UICollectionViewScrollDirection.Vertical
-				? new Size(preferredAttributes.Size.Width, double.PositiveInfinity)
-				: new Size(double.PositiveInfinity, preferredAttributes.Size.Height);
+				? new Size(attributes.Size.Width, double.PositiveInfinity)
+				: new Size(double.PositiveInfinity, attributes.Size.Height);
 			return constraints;
 		}
 
