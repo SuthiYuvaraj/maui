@@ -40,7 +40,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		Size _measuredSize;
 		Size _cachedConstraints;
 
-		internal Size firstItemSize;
+		internal Size firstItemSize; // This is now always set from the CollectionView's attached property
 
 		internal bool MeasureInvalidated => _measureInvalidated;
 
@@ -97,15 +97,15 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				{
 					if (PlatformHandler?.VirtualView is View view && view.Parent is CollectionView itemsView && itemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 					{
-						if (layoutAttributes.IndexPath.Item == 0)
+						// Always get the cached first item size from the CollectionView
+						var cached = CollectionViewMeasurementCache.GetFirstItemMeasuredSize(itemsView);
+						if (!cached.IsZero)
 						{
-							// For the first item, measure and update firstItemSize
-							_measuredSize = virtualView.Measure(constraints.Width, constraints.Height);
+							_measuredSize = cached;
 						}
-						else if (!firstItemSize.IsZero)
+						else
 						{
-							// For subsequent items, use the cached firstItemSize
-							_measuredSize = firstItemSize;
+							_measuredSize = virtualView.Measure(constraints.Width, constraints.Height);
 						}
 					}
 					else
@@ -118,7 +118,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				}
 
 				var preferredSize = preferredAttributes.Size;
-				// Use measured size only when unconstrained
 				var size = new Size(
 					double.IsPositiveInfinity(constraints.Width) ? _measuredSize.Width : preferredSize.Width,
 					double.IsPositiveInfinity(constraints.Height) ? _measuredSize.Height : preferredSize.Height

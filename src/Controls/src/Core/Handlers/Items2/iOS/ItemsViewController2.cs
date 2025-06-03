@@ -119,15 +119,20 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 				TemplatedCell2.Bind(ItemsView.ItemTemplate, ItemsSource[indexpathAdjusted], ItemsView);
 
-				if ((ItemsView as CollectionView).ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+				var cv = ItemsView as CollectionView;
+				if (cv?.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 				{
-					// If the cell is not already measured, measure it and cache the size
-					// This is only done for the first item in the collection
-					var FirstItemSize = DetermineCellSize(TemplatedCell2, indexPath);
-					if (FirstItemSize != CGSize.Empty)
+					// Only measure and cache the first item size once per CollectionView
+					if (CollectionViewMeasurementCache.GetFirstItemMeasuredSize(cv).IsZero && indexPath.Item == 0)
 					{
-						TemplatedCell2.firstItemSize = FirstItemSize.ToSize();
+						var measuredSize = DetermineCellSize(TemplatedCell2, indexPath);
+						if (measuredSize != CGSize.Empty)
+						{
+							CollectionViewMeasurementCache.SetFirstItemMeasuredSize(cv, measuredSize.ToSize());
+						}
 					}
+					// Always set the cell's firstItemSize from the cache
+					TemplatedCell2.firstItemSize = CollectionViewMeasurementCache.GetFirstItemMeasuredSize(cv);
 				}
 			}
 			else if (cell is DefaultCell2 DefaultCell2)
@@ -284,9 +289,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			var collectionView = ItemsView as CollectionView;
 			if (collectionView?.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem && ItemsSource?.ItemCount > 0)
 			{
-				if (indexPath.Item == 0)
+				if (templatedCell2.PlatformHandler?.VirtualView is View view)
 				{
-					_firstItemMeasuredSize = templatedCell2.Frame.Size;
+					// Use the same constraints as PreferredLayoutAttributesFittingAttributes
+					var constraints = templatedCell2.ScrollDirection == UICollectionViewScrollDirection.Vertical
+						? new Size(templatedCell2.Bounds.Width, double.PositiveInfinity)
+						: new Size(double.PositiveInfinity, templatedCell2.Bounds.Height);
+					var measured = view.Measure(constraints.Width, constraints.Height);
+					_firstItemMeasuredSize = measured.ToCGSize();
 				}
 				return _firstItemMeasuredSize;
 			}
