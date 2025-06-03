@@ -40,8 +40,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		Size _measuredSize;
 		Size _cachedConstraints;
 
-		internal Size firstItemSize; // This is now always set from the CollectionView's attached property
-
 		internal bool MeasureInvalidated => _measureInvalidated;
 
 		// Flags changes confined to the header/footer, preventing unnecessary recycling and revalidation of templated cells.

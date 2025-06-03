@@ -131,8 +131,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 							CollectionViewMeasurementCache.SetFirstItemMeasuredSize(cv, measuredSize.ToSize());
 						}
 					}
-					// Always set the cell's firstItemSize from the cache
-					TemplatedCell2.firstItemSize = CollectionViewMeasurementCache.GetFirstItemMeasuredSize(cv);
 				}
 			}
 			else if (cell is DefaultCell2 DefaultCell2)
