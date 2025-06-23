@@ -6,7 +6,16 @@ namespace Microsoft.Maui.Handlers
 {
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, CalendarDatePicker>
 	{
-		protected override CalendarDatePicker CreatePlatformView() => new CalendarDatePicker();
+		protected override CalendarDatePicker CreatePlatformView()
+		{
+			var calendarDatePicker = new CalendarDatePicker();
+
+			// Set the Language property to match the current culture
+			var culture = System.Globalization.CultureInfo.CurrentCulture;
+			calendarDatePicker.Language = culture.IetfLanguageTag;
+
+			return calendarDatePicker;
+		}
 
 		protected override void ConnectHandler(CalendarDatePicker platformView)
 		{
@@ -77,6 +86,13 @@ namespace Microsoft.Maui.Handlers
 			//{
 			//	VirtualView.Date = args.NewDate.Value.Date;
 			//}
+
+			// Update language in case culture has changed since initialization
+			var currentCulture = System.Globalization.CultureInfo.CurrentCulture;
+			if (sender.Language != currentCulture.IetfLanguageTag)
+			{
+				sender.Language = currentCulture.IetfLanguageTag;
+			}
 
 			VirtualView.Date = args.NewDate.Value.Date;
 		}
