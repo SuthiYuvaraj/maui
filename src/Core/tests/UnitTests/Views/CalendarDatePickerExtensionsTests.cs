@@ -10,19 +10,19 @@ namespace Microsoft.Maui.UnitTests.Views
 		[Theory]
 		[InlineData("d", "")] // Default short date format
 		[InlineData("D", "{dayofweek.full} {month.full} {day.integer} {year.full}")] // Long date format
-		[InlineData("f", "{dayofweek.full} {month.full} {day.integer} {year.full}")] // Full date (short time) - maps to long date
-		[InlineData("F", "{dayofweek.full} {month.full} {day.integer} {year.full}")] // Full date (long time) - maps to long date
-		[InlineData("g", "")] // General date (short time) - uses default
-		[InlineData("G", "")] // General date (long time) - uses default
+		[InlineData("f", "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}")] // Full date (short time)
+		[InlineData("F", "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")] // Full date (long time)
+		[InlineData("g", "{month.integer}/{day.integer}/{year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}")] // General date (short time)
+		[InlineData("G", "{month.integer}/{day.integer}/{year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")] // General date (long time)
 		[InlineData("m", "{month.full} {day.integer}")] // Month day pattern
 		[InlineData("M", "{month.full} {day.integer}")] // Month day pattern
 		[InlineData("o", "")] // Round-trip date/time - uses default
 		[InlineData("O", "")] // Round-trip date/time - uses default
-		[InlineData("r", "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full}")] // RFC1123 pattern approximation
-		[InlineData("R", "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full}")] // RFC1123 pattern approximation
-		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}")] // Sortable date pattern
-		[InlineData("u", "")] // Universal sortable - uses default
-		[InlineData("U", "{dayofweek.full} {month.full} {day.integer} {year.full}")] // Universal full - maps to long date
+		[InlineData("r", "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")] // RFC1123 pattern
+		[InlineData("R", "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")] // RFC1123 pattern
+		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}")] // Sortable date/time pattern
+		[InlineData("u", "{year.full}-{month.integer(2)}-{day.integer(2)} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}Z")] // Universal sortable date/time
+		[InlineData("U", "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")] // Universal full date/time
 		[InlineData("y", "{year.full} {month.full}")] // Year month pattern
 		[InlineData("Y", "{year.full} {month.full}")] // Year month pattern
 		public void ToDateFormat_StandardFormats_ReturnExpectedPatterns(string format, string expected)

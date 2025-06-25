@@ -51,23 +51,25 @@ namespace Microsoft.Maui.Platform
 				case "y":
 				case "Y": // Year month pattern - .NET shows "2023 December"
 					return "{year.full} {month.full}";
-				case "f": // Full date/time pattern (short time) - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer} {year.full}";
-				case "F": // Full date/time pattern (long time) - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer} {year.full}";
-				case "g": // General date/time pattern (short time) - use short date since time is not applicable  
-					return string.Empty; // Let it fall back to default short date
-				case "G": // General date/time pattern (long time) - use short date since time is not applicable
-					return string.Empty; // Let it fall back to default short date
-				case "U": // Universal full date/time pattern - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer} {year.full}";
+				case "f": // Full date/time pattern (short time)
+					return "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}";
+				case "F": // Full date/time pattern (long time)
+					return "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
+				case "g": // General date/time pattern (short time)
+					return "{month.integer}/{day.integer}/{year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}";
+				case "G": // General date/time pattern (long time)
+					return "{month.integer}/{day.integer}/{year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
+				case "U": // Universal full date/time pattern
+					return "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
 				case "r":
-				case "R": // RFC1123 pattern - use abbreviated format as close approximation
-					return "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full}";
-				case "s": // Sortable date/time pattern - use numeric format
-					return "{year.full}-{month.integer(2)}-{day.integer(2)}";
+				case "R": // RFC1123 pattern
+					return "{dayofweek.abbreviated} {day.integer} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT";
+				case "s": // Sortable date/time pattern
+					return "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}";
+				case "u": // Universal sortable date/time pattern
+					return "{year.full}-{month.integer(2)}-{day.integer(2)} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}Z";
 				default:
-					// For other standard formats (o, O, u) that can't be reasonably mapped to date-only patterns,
+					// For other standard formats (o, O) that can't be reasonably mapped to date/time patterns,
 					// return empty string so that they use the default format
 					return string.Empty;
 			}
