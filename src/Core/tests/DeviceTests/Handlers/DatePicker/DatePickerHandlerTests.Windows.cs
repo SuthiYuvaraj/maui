@@ -52,10 +52,13 @@ namespace Microsoft.Maui.DeviceTests
 		[InlineData("dddd/MMMM/yyyy", "{dayofweek.full}/{month.full}/{year.full}")]
 		public async Task FormatInitializesCorrectly(string format, string nativeFormat)
 		{
-			var datePicker = new DatePickerStub();
-
-			datePicker.Date = DateTime.Today;
-			datePicker.Format = format;
+			var datePicker = new DatePickerStub()
+			{
+				Date = DateTime.Today,
+				MinimumDate = DateTime.Today.AddDays(-1),
+				MaximumDate = DateTime.Today.AddDays(1),
+				Format = format
+			};
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
@@ -74,10 +77,13 @@ namespace Microsoft.Maui.DeviceTests
 		[InlineData("Y", "{year.full} {month.full}")]
 		public async Task StandardFormatInitializesCorrectly(string format, string nativeFormat)
 		{
-			var datePicker = new DatePickerStub();
-
-			datePicker.Date = DateTime.Today;
-			datePicker.Format = format;
+			var datePicker = new DatePickerStub()
+			{
+				Date = DateTime.Today,
+				MinimumDate = DateTime.Today.AddDays(-1),
+				MaximumDate = DateTime.Today.AddDays(1),
+				Format = format
+			};
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
@@ -91,10 +97,13 @@ namespace Microsoft.Maui.DeviceTests
 		[InlineData("u", "")]
 		public async Task StandardFormatDefaultInitializesCorrectly(string format, string nativeFormat)
 		{
-			var datePicker = new DatePickerStub();
-
-			datePicker.Date = DateTime.Today;
-			datePicker.Format = format;
+			var datePicker = new DatePickerStub()
+			{
+				Date = DateTime.Today,
+				MinimumDate = DateTime.Today.AddDays(-1),
+				MaximumDate = DateTime.Today.AddDays(1),
+				Format = format
+			};
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
