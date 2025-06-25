@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using Android.App;
 using Android.Views;
 using Microsoft.Maui.Devices;
@@ -8,6 +9,7 @@ namespace Microsoft.Maui.Handlers
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, MauiDatePicker>
 	{
 		DatePickerDialog? _dialog;
+		CultureInfo? _lastCulture;
 
 		protected override MauiDatePicker CreatePlatformView()
 		{
@@ -22,6 +24,7 @@ namespace Microsoft.Maui.Handlers
 			if (date != null)
 				_dialog = CreateDatePickerDialog(date.Value.Year, date.Value.Month - 1, date.Value.Day);
 
+			_lastCulture = CultureInfo.CurrentCulture;
 			return mauiDatePicker;
 		}
 
@@ -41,11 +44,13 @@ namespace Microsoft.Maui.Handlers
 		{
 			// I tested and this is called when an activity is destroyed
 			DeviceDisplay.MainDisplayInfoChanged -= OnMainDisplayInfoChanged;
+			StopCultureMonitoring();
 		}
 
 		void OnViewAttachedToWindow(object? sender = null, View.ViewAttachedToWindowEventArgs? e = null)
 		{
 			DeviceDisplay.MainDisplayInfoChanged += OnMainDisplayInfoChanged;
+			StartCultureMonitoring();
 		}
 
 		protected override void DisconnectHandler(MauiDatePicker platformView)
@@ -84,11 +89,15 @@ namespace Microsoft.Maui.Handlers
 
 		public static partial void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler androidHandler)
+				androidHandler.CheckCultureChange();
 			handler.PlatformView?.UpdateFormat(datePicker);
 		}
 
 		public static partial void MapDate(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler androidHandler)
+				androidHandler.CheckCultureChange();
 			handler.PlatformView?.UpdateDate(datePicker);
 		}
 
@@ -162,6 +171,37 @@ namespace Microsoft.Maui.Handlers
 				currentDialog.Dismiss();
 
 				ShowPickerDialog(currentDialog.DatePicker.Year, currentDialog.DatePicker.Month, currentDialog.DatePicker.DayOfMonth);
+			}
+		}
+
+		void StartCultureMonitoring()
+		{
+			_lastCulture = CultureInfo.CurrentCulture;
+			
+			// For Android, we can use a configuration change listener or poll for culture changes
+			// Since Android culture changes typically happen through system settings,
+			// we can monitor this through the application's configuration changes
+			CheckCultureChange();
+		}
+
+		void StopCultureMonitoring()
+		{
+			// Stop any culture monitoring activities for this instance
+			_lastCulture = null;
+		}
+
+		void CheckCultureChange()
+		{
+			var currentCulture = CultureInfo.CurrentCulture;
+			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))
+			{
+				_lastCulture = currentCulture;
+				
+				// Refresh the DatePicker display to reflect the new culture
+				if (VirtualView != null && PlatformView != null)
+				{
+					PlatformView.UpdateFormat(VirtualView);
+				}
 			}
 		}
 	}

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Globalization;
+using Foundation;
 using UIKit;
 
 namespace Microsoft.Maui.Handlers
@@ -6,9 +8,12 @@ namespace Microsoft.Maui.Handlers
 #if !MACCATALYST
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, MauiDatePicker>
 	{
+		CultureInfo? _lastCulture;
+
 		protected override MauiDatePicker CreatePlatformView()
 		{
 			MauiDatePicker platformDatePicker = new MauiDatePicker();
+			_lastCulture = CultureInfo.CurrentCulture;
 			return platformDatePicker;
 		}
 
@@ -29,12 +34,14 @@ namespace Microsoft.Maui.Handlers
 				}
 			}
 
+			StartCultureMonitoring();
 			base.ConnectHandler(platformView);
 		}
 
 		protected override void DisconnectHandler(MauiDatePicker platformView)
 		{
 			platformView.MauiDatePickerDelegate = null;
+			StopCultureMonitoring();
 
 			base.DisconnectHandler(platformView);
 		}
@@ -125,6 +132,37 @@ namespace Microsoft.Maui.Handlers
 				return;
 
 			VirtualView.Date = DatePickerDialog.Date.ToDateTime().Date;
+		}
+
+		void StartCultureMonitoring()
+		{
+			_lastCulture = CultureInfo.CurrentCulture;
+			
+			// Subscribe to culture change notifications on iOS
+			Foundation.NSNotificationCenter.DefaultCenter.AddObserver(
+				Foundation.NSLocale.CurrentLocaleDidChangeNotification,
+				OnCultureChanged);
+		}
+
+		void StopCultureMonitoring()
+		{
+			Foundation.NSNotificationCenter.DefaultCenter.RemoveObserver(this);
+		}
+
+		void OnCultureChanged(Foundation.NSNotification notification)
+		{
+			var currentCulture = CultureInfo.CurrentCulture;
+			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))
+			{
+				_lastCulture = currentCulture;
+				
+				// Refresh the DatePicker display to reflect the new culture
+				if (VirtualView != null && PlatformView != null)
+				{
+					var picker = DatePickerDialog;
+					PlatformView.UpdateFormat(VirtualView, picker);
+				}
+			}
 		}
 
 		class DatePickerDelegate : MauiDatePickerDelegate

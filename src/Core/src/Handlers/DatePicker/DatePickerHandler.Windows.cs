@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.Globalization;
 using Microsoft.UI.Xaml.Controls;
 using WBrush = Microsoft.UI.Xaml.Media.Brush;
 
@@ -6,25 +7,37 @@ namespace Microsoft.Maui.Handlers
 {
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, CalendarDatePicker>
 	{
-		protected override CalendarDatePicker CreatePlatformView() => new CalendarDatePicker();
+		CultureInfo? _lastCulture;
+
+		protected override CalendarDatePicker CreatePlatformView()
+		{
+			_lastCulture = CultureInfo.CurrentCulture;
+			return new CalendarDatePicker();
+		}
 
 		protected override void ConnectHandler(CalendarDatePicker platformView)
 		{
 			platformView.DateChanged += DateChanged;
+			StartCultureMonitoring();
 		}
 
 		protected override void DisconnectHandler(CalendarDatePicker platformView)
 		{
 			platformView.DateChanged -= DateChanged;
+			StopCultureMonitoring();
 		}
 
 		public static partial void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler windowsHandler)
+				windowsHandler.CheckCultureChange();
 			handler.PlatformView.UpdateDate(datePicker);
 		}
 
 		public static partial void MapDate(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler windowsHandler)
+				windowsHandler.CheckCultureChange();
 			handler.PlatformView.UpdateDate(datePicker);
 		}
 
@@ -84,6 +97,35 @@ namespace Microsoft.Maui.Handlers
 		public static partial void MapBackground(IDatePickerHandler handler, IDatePicker datePicker)
 		{
 			handler.PlatformView?.UpdateBackground(datePicker);
+		}
+
+		void StartCultureMonitoring()
+		{
+			_lastCulture = CultureInfo.CurrentCulture;
+			// For Windows, we can use a timer-based approach to check for culture changes
+			// or we could hook into Windows locale change events
+			CheckCultureChange();
+		}
+
+		void StopCultureMonitoring()
+		{
+			// Stop any culture monitoring activities for this instance
+			_lastCulture = null;
+		}
+
+		void CheckCultureChange()
+		{
+			var currentCulture = CultureInfo.CurrentCulture;
+			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))
+			{
+				_lastCulture = currentCulture;
+				
+				// Refresh the DatePicker display to reflect the new culture
+				if (VirtualView != null && PlatformView != null)
+				{
+					PlatformView.UpdateDate(VirtualView);
+				}
+			}
 		}
 	}
 }

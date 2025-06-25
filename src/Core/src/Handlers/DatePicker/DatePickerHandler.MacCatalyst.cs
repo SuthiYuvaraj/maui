@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using Foundation;
 using UIKit;
 using RectangleF = CoreGraphics.CGRect;
@@ -8,9 +9,11 @@ namespace Microsoft.Maui.Handlers
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, UIDatePicker>
 	{
 		readonly UIDatePickerProxy _proxy = new();
+		CultureInfo? _lastCulture;
 
 		protected override UIDatePicker CreatePlatformView()
 		{
+			_lastCulture = CultureInfo.CurrentCulture;
 			return new UIDatePicker { Mode = UIDatePickerMode.Date, TimeZone = new NSTimeZone("UTC") };
 		}
 
@@ -26,12 +29,14 @@ namespace Microsoft.Maui.Handlers
 				platformView.Date = dt.ToNSDate();
 			}
 
+			StartCultureMonitoring();
 			base.ConnectHandler(platformView);
 		}
 
 		protected override void DisconnectHandler(UIDatePicker platformView)
 		{
 			_proxy.Disconnect(platformView);
+			StopCultureMonitoring();
 
 			base.DisconnectHandler(platformView);
 		}
@@ -81,6 +86,36 @@ namespace Microsoft.Maui.Handlers
 				return;
 
 			VirtualView.Date = PlatformView.Date.ToDateTime().Date;
+		}
+
+		void StartCultureMonitoring()
+		{
+			_lastCulture = CultureInfo.CurrentCulture;
+			
+			// Subscribe to culture change notifications on MacCatalyst
+			NSNotificationCenter.DefaultCenter.AddObserver(
+				NSLocale.CurrentLocaleDidChangeNotification,
+				OnCultureChanged);
+		}
+
+		void StopCultureMonitoring()
+		{
+			NSNotificationCenter.DefaultCenter.RemoveObserver(this);
+		}
+
+		void OnCultureChanged(NSNotification notification)
+		{
+			var currentCulture = CultureInfo.CurrentCulture;
+			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))
+			{
+				_lastCulture = currentCulture;
+				
+				// Refresh the DatePicker display to reflect the new culture
+				if (VirtualView != null && PlatformView != null)
+				{
+					PlatformView.UpdateFormat(VirtualView);
+				}
+			}
 		}
 
 		class UIDatePickerProxy
