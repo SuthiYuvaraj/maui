@@ -48,12 +48,16 @@ namespace Microsoft.Maui.Handlers
 
 		public static partial void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler iosHandler)
+				iosHandler.CheckCultureChange();
 			var picker = (handler as DatePickerHandler)?.DatePickerDialog;
 			handler.PlatformView?.UpdateFormat(datePicker, picker);
 		}
 
 		public static partial void MapDate(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler iosHandler)
+				iosHandler.CheckCultureChange();
 			var picker = (handler as DatePickerHandler)?.DatePickerDialog;
 			handler.PlatformView?.UpdateDate(datePicker, picker);
 		}
@@ -137,19 +141,17 @@ namespace Microsoft.Maui.Handlers
 		void StartCultureMonitoring()
 		{
 			_lastCulture = CultureInfo.CurrentCulture;
-			
-			// Subscribe to culture change notifications on iOS
-			Foundation.NSNotificationCenter.DefaultCenter.AddObserver(
-				Foundation.NSLocale.CurrentLocaleDidChangeNotification,
-				OnCultureChanged);
+			// For iOS, we check for culture changes in MapFormat and MapDate operations
+			CheckCultureChange();
 		}
 
 		void StopCultureMonitoring()
 		{
-			Foundation.NSNotificationCenter.DefaultCenter.RemoveObserver(this);
+			// Stop any culture monitoring activities for this instance
+			_lastCulture = null;
 		}
 
-		void OnCultureChanged(Foundation.NSNotification notification)
+		void CheckCultureChange()
 		{
 			var currentCulture = CultureInfo.CurrentCulture;
 			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))
