@@ -20,6 +20,9 @@ namespace Microsoft.Maui.Handlers
 
 			_proxy.Connect(this, VirtualView, platformView);
 			platformView.UpdateTime(VirtualView.Time);
+
+			// Subscribe to culture changes
+			Microsoft.Maui.Platform.Culture.CultureChanged += OnCultureChanged;
 		}
 
 		protected override void DisconnectHandler(MauiTimePicker platformView)
@@ -27,6 +30,18 @@ namespace Microsoft.Maui.Handlers
 			base.DisconnectHandler(platformView);
 
 			_proxy.Disconnect(platformView);
+
+			// Unsubscribe from culture changes
+			Microsoft.Maui.Platform.Culture.CultureChanged -= OnCultureChanged;
+		}
+
+		void OnCultureChanged(object? sender, EventArgs e)
+		{
+			// Update the TimePicker display when culture changes
+			if (VirtualView != null && PlatformView != null)
+			{
+				PlatformView.UpdateTime(VirtualView, PlatformView.Picker);
+			}
 		}
 
 		public static void MapFormat(ITimePickerHandler handler, ITimePicker timePicker)
