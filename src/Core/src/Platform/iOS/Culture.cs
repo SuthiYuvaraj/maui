@@ -39,5 +39,19 @@ namespace Microsoft.Maui.Platform
 				return s_currentCulture;
 			}
 		}
+
+		/// <summary>
+		/// Forces a refresh of the current culture and notifies listeners if it has changed.
+		/// This method is useful for testing or when you know the system locale has changed.
+		/// </summary>
+		public static void RefreshCurrentCulture()
+		{
+			// Clear cached values to force refresh on next access
+			s_locale = null;
+			s_currentCulture = null;
+			
+			// Access CurrentCulture to trigger refresh and potential notification
+			_ = CurrentCulture;
+		}
 	}
 }
