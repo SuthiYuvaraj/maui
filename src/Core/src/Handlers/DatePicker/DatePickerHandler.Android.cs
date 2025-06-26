@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Globalization;
+using System.Threading;
 using Android.App;
 using Android.Views;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Devices;
 
 namespace Microsoft.Maui.Handlers
@@ -10,6 +12,7 @@ namespace Microsoft.Maui.Handlers
 	{
 		DatePickerDialog? _dialog;
 		CultureInfo? _lastCulture;
+		Timer? _cultureMonitorTimer;
 
 		protected override MauiDatePicker CreatePlatformView()
 		{
@@ -178,16 +181,25 @@ namespace Microsoft.Maui.Handlers
 		{
 			_lastCulture = CultureInfo.CurrentCulture;
 			
-			// For Android, we can use a configuration change listener or poll for culture changes
-			// Since Android culture changes typically happen through system settings,
-			// we can monitor this through the application's configuration changes
-			CheckCultureChange();
+			// Start a timer to periodically check for culture changes
+			_cultureMonitorTimer = new Timer(OnCultureMonitorTick, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 		}
 
 		void StopCultureMonitoring()
 		{
-			// Stop any culture monitoring activities for this instance
+			// Stop the culture monitoring timer
+			_cultureMonitorTimer?.Dispose();
+			_cultureMonitorTimer = null;
 			_lastCulture = null;
+		}
+
+		void OnCultureMonitorTick(object? state)
+		{
+			// Check for culture changes on the main thread
+			MainThread.BeginInvokeOnMainThread(() =>
+			{
+				CheckCultureChange();
+			});
 		}
 
 		void CheckCultureChange()

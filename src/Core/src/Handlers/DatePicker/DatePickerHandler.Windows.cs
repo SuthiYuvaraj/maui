@@ -1,5 +1,8 @@
 ﻿#nullable enable
+using System;
 using System.Globalization;
+using System.Threading;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.UI.Xaml.Controls;
 using WBrush = Microsoft.UI.Xaml.Media.Brush;
 
@@ -8,6 +11,7 @@ namespace Microsoft.Maui.Handlers
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, CalendarDatePicker>
 	{
 		CultureInfo? _lastCulture;
+		Timer? _cultureMonitorTimer;
 
 		protected override CalendarDatePicker CreatePlatformView()
 		{
@@ -102,15 +106,26 @@ namespace Microsoft.Maui.Handlers
 		void StartCultureMonitoring()
 		{
 			_lastCulture = CultureInfo.CurrentCulture;
-			// For Windows, we can use a timer-based approach to check for culture changes
-			// or we could hook into Windows locale change events
-			CheckCultureChange();
+			
+			// Start a timer to periodically check for culture changes
+			_cultureMonitorTimer = new Timer(OnCultureMonitorTick, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 		}
 
 		void StopCultureMonitoring()
 		{
-			// Stop any culture monitoring activities for this instance
+			// Stop the culture monitoring timer
+			_cultureMonitorTimer?.Dispose();
+			_cultureMonitorTimer = null;
 			_lastCulture = null;
+		}
+
+		void OnCultureMonitorTick(object? state)
+		{
+			// Check for culture changes on the main thread
+			MainThread.BeginInvokeOnMainThread(() =>
+			{
+				CheckCultureChange();
+			});
 		}
 
 		void CheckCultureChange()

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Globalization;
+using System.Threading;
 using Foundation;
 using UIKit;
+using Microsoft.Maui.ApplicationModel;
 using RectangleF = CoreGraphics.CGRect;
 
 namespace Microsoft.Maui.Handlers
@@ -10,6 +12,7 @@ namespace Microsoft.Maui.Handlers
 	{
 		readonly UIDatePickerProxy _proxy = new();
 		CultureInfo? _lastCulture;
+		Timer? _cultureMonitorTimer;
 
 		protected override UIDatePicker CreatePlatformView()
 		{
@@ -43,11 +46,15 @@ namespace Microsoft.Maui.Handlers
 
 		public static partial void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler macHandler)
+				macHandler.CheckCultureChange();
 			handler.PlatformView?.UpdateFormat(datePicker);
 		}
 
 		public static partial void MapDate(IDatePickerHandler handler, IDatePicker datePicker)
 		{
+			if (handler is DatePickerHandler macHandler)
+				macHandler.CheckCultureChange();
 			handler.PlatformView?.UpdateDate(datePicker);
 		}
 
@@ -92,18 +99,28 @@ namespace Microsoft.Maui.Handlers
 		{
 			_lastCulture = CultureInfo.CurrentCulture;
 			
-			// Subscribe to culture change notifications on MacCatalyst
-			NSNotificationCenter.DefaultCenter.AddObserver(
-				NSLocale.CurrentLocaleDidChangeNotification,
-				OnCultureChanged);
+			// Start a timer to periodically check for culture changes
+			_cultureMonitorTimer = new Timer(OnCultureMonitorTick, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 		}
 
 		void StopCultureMonitoring()
 		{
-			NSNotificationCenter.DefaultCenter.RemoveObserver(this);
+			// Stop the culture monitoring timer
+			_cultureMonitorTimer?.Dispose();
+			_cultureMonitorTimer = null;
+			_lastCulture = null;
 		}
 
-		void OnCultureChanged(NSNotification notification)
+		void OnCultureMonitorTick(object? state)
+		{
+			// Check for culture changes on the main thread
+			MainThread.BeginInvokeOnMainThread(() =>
+			{
+				CheckCultureChange();
+			});
+		}
+
+		void CheckCultureChange()
 		{
 			var currentCulture = CultureInfo.CurrentCulture;
 			if (_lastCulture == null || !_lastCulture.Equals(currentCulture))

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Globalization;
+using System.Threading;
 using Foundation;
 using UIKit;
+using Microsoft.Maui.ApplicationModel;
 
 namespace Microsoft.Maui.Handlers
 {
@@ -9,6 +11,7 @@ namespace Microsoft.Maui.Handlers
 	public partial class DatePickerHandler : ViewHandler<IDatePicker, MauiDatePicker>
 	{
 		CultureInfo? _lastCulture;
+		Timer? _cultureMonitorTimer;
 
 		protected override MauiDatePicker CreatePlatformView()
 		{
@@ -141,14 +144,26 @@ namespace Microsoft.Maui.Handlers
 		void StartCultureMonitoring()
 		{
 			_lastCulture = CultureInfo.CurrentCulture;
-			// For iOS, we check for culture changes in MapFormat and MapDate operations
-			CheckCultureChange();
+			
+			// Start a timer to periodically check for culture changes
+			_cultureMonitorTimer = new Timer(OnCultureMonitorTick, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 		}
 
 		void StopCultureMonitoring()
 		{
-			// Stop any culture monitoring activities for this instance
+			// Stop the culture monitoring timer
+			_cultureMonitorTimer?.Dispose();
+			_cultureMonitorTimer = null;
 			_lastCulture = null;
+		}
+
+		void OnCultureMonitorTick(object? state)
+		{
+			// Check for culture changes on the main thread
+			MainThread.BeginInvokeOnMainThread(() =>
+			{
+				CheckCultureChange();
+			});
 		}
 
 		void CheckCultureChange()
