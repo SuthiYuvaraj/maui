@@ -6,7 +6,21 @@ namespace Microsoft.Maui.Handlers
 {
 	public partial class TimePickerHandler : ViewHandler<ITimePicker, TimePicker>
 	{
-		protected override TimePicker CreatePlatformView() => new TimePicker();
+		protected override TimePicker CreatePlatformView()
+		{
+			var timePicker = new TimePicker();
+
+			// Set the TimePicker's ClockIdentifier based on the current culture's time format
+			var culture = System.Globalization.CultureInfo.CurrentCulture;
+			var timeFormat = culture?.DateTimeFormat?.ShortTimePattern;
+
+			if (!string.IsNullOrEmpty(timeFormat) && timeFormat.Contains('H', StringComparison.Ordinal))
+				timePicker.ClockIdentifier = "24HourClock";
+			else
+				timePicker.ClockIdentifier = "12HourClock";
+
+			return timePicker;
+		}
 
 		protected override void ConnectHandler(TimePicker platformView)
 		{
@@ -57,6 +71,20 @@ namespace Microsoft.Maui.Handlers
 			{
 				VirtualView.Time = e.NewTime;
 				VirtualView.InvalidateMeasure();
+
+				var culture = System.Globalization.CultureInfo.CurrentCulture;
+				var timeFormat = culture.DateTimeFormat.ShortTimePattern;
+				var platformView = sender as TimePicker;
+
+				if (platformView != null)
+				{
+
+					if (!string.IsNullOrEmpty(timeFormat) && timeFormat.Contains('H', StringComparison.Ordinal))
+						platformView.ClockIdentifier = "24HourClock";
+					else
+						platformView.ClockIdentifier = "12HourClock";
+				}
+
 			}
 		}
 	}

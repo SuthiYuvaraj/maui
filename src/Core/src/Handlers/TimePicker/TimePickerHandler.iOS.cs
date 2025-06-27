@@ -9,7 +9,23 @@ namespace Microsoft.Maui.Handlers
 
 		protected override MauiTimePicker CreatePlatformView()
 		{
-			return new MauiTimePicker(_proxy.OnDateSelected);
+			var picker = new MauiTimePicker(_proxy.OnDateSelected);
+
+			// Set the CultureInfo if available from VirtualView
+			if (VirtualView is ITimePicker timePicker && timePicker is not null)
+			{
+
+				if (timePicker is IElement element && element is not null)
+				{
+					var culture = (timePicker as IElement)?.Handler?.MauiContext?.Services?.GetService(typeof(System.Globalization.CultureInfo)) as System.Globalization.CultureInfo;
+					if (culture != null)
+					{
+						picker.Picker.Locale = Foundation.NSLocale.FromLocaleIdentifier(culture.Name);
+					}
+				}
+			}
+
+			return picker;
 		}
 
 		internal bool UpdateImmediately { get; set; }
