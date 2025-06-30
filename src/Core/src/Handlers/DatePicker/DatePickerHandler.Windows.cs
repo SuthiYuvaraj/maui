@@ -88,11 +88,6 @@ namespace Microsoft.Maui.Handlers
 			//}
 
 			// Update language in case culture has changed since initialization
-			var currentCulture = System.Globalization.CultureInfo.CurrentCulture;
-			if (sender.Language != currentCulture.IetfLanguageTag)
-			{
-				sender.Language = currentCulture.IetfLanguageTag;
-			}
 
 			VirtualView.Date = args.NewDate.Value.Date;
 		}

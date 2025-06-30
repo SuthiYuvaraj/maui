@@ -68,33 +68,27 @@ namespace Microsoft.Maui.Platform
 				{
 					TimeZone = NSTimeZone.FromGMT(0)
 				};
-				var currentCulture = NSLocale.FromLocaleIdentifier(CultureInfo.CurrentCulture.Name.Replace('_', '-'));
 
 				if (format.Equals("D", StringComparison.Ordinal) == true)
 				{
-					dateFormatter.DateStyle = NSDateFormatterStyle.Full;
-					// Set locale based on current culture for "D" format
-					dateFormatter.Locale = NSLocale.FromLocaleIdentifier(currentCulture.LocaleIdentifier);
+					dateFormatter.DateStyle = NSDateFormatterStyle.Long;
 					var strDate = dateFormatter.StringFor(picker.Date);
 					platformDatePicker.Text = strDate;
 				}
 				else
 				{
 					dateFormatter.DateStyle = NSDateFormatterStyle.Short;
-					dateFormatter.Locale = NSLocale.FromLocaleIdentifier(currentCulture.LocaleIdentifier);
 					var strDate = dateFormatter.StringFor(picker.Date);
 					platformDatePicker.Text = strDate;
 				}
 			}
 			else if (format.Contains('/', StringComparison.Ordinal))
 			{
-				// Use current culture for date formatting to ensure culture changes are reflected
 				platformDatePicker.Text = datePicker.Date.ToString(format, CultureInfo.InvariantCulture);
 			}
 			else
 			{
-				// Use current culture for date formatting to ensure culture changes are reflected
-				platformDatePicker.Text = datePicker.Date.ToString(format, CultureInfo.CurrentCulture);
+				platformDatePicker.Text = datePicker.Date.ToString(format);
 			}
 
 			platformDatePicker.UpdateCharacterSpacing(datePicker);

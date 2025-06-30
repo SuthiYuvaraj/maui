@@ -11,7 +11,17 @@ namespace Microsoft.Maui.Handlers
 
 		protected override UIDatePicker CreatePlatformView()
 		{
-			return new UIDatePicker { Mode = UIDatePickerMode.Date, TimeZone = new NSTimeZone("UTC") };
+			var picker = new UIDatePicker
+			{
+				Mode = UIDatePickerMode.Date,
+				TimeZone = new NSTimeZone("UTC")
+			};
+
+			// Set the locale based on the current CultureInfo
+			var culture = System.Globalization.CultureInfo.CurrentUICulture;
+			picker.Locale = new NSLocale(culture.Name);
+
+			return picker;
 		}
 
 		internal bool UpdateImmediately { get; set; } = true;
