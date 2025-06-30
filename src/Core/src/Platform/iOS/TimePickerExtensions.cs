@@ -30,48 +30,47 @@ namespace Microsoft.Maui.Platform
 		public static void UpdateTime(this UIDatePicker picker, ITimePicker timePicker)
 		{
 			if (picker != null)
-			{
-				// Set the locale of the UIDatePicker based on the current culture
-				var cultureInfo = CultureInfo.CurrentCulture;
-				NSLocale locale = new NSLocale(cultureInfo.TwoLetterISOLanguageName);
-				picker.Locale = locale;
-
 				picker.Date = new DateTime(1, 1, 1).Add(timePicker.Time).ToNSDate();
-			}
 		}
 
 		public static void UpdateTime(this MauiTimePicker mauiTimePicker, ITimePicker timePicker, UIDatePicker? picker)
 		{
+			picker?.UpdateTime(timePicker);
+
 			var cultureInfo = CultureInfo.CurrentCulture;
+
+			if (string.IsNullOrEmpty(timePicker.Format))
+			{
+				NSLocale locale = new NSLocale(cultureInfo.TwoLetterISOLanguageName);
+
+				if (picker != null)
+					picker.Locale = locale;
+			}
+
+			var time = timePicker.Time;
 			var format = timePicker.Format;
 
-			// Set locale based on format before updating the picker's date
-			if (picker != null)
+			mauiTimePicker.Text = time.ToFormattedString(format, cultureInfo);
+
+			if (format != null)
 			{
-				if (string.IsNullOrEmpty(format))
-				{
-					NSLocale locale = new NSLocale(cultureInfo.TwoLetterISOLanguageName);
-					picker.Locale = locale;
-				}
-				else if (format.Contains('H', StringComparison.Ordinal))
+				if (format.Contains('H', StringComparison.Ordinal))
 				{
 					var ci = new CultureInfo("de-DE");
 					NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
-					picker.Locale = locale;
+
+					if (picker != null)
+						picker.Locale = locale;
 				}
 				else if (format.Contains('h', StringComparison.Ordinal))
 				{
 					var ci = new CultureInfo("en-US");
 					NSLocale locale = new NSLocale(ci.TwoLetterISOLanguageName);
-					picker.Locale = locale;
+
+					if (picker != null)
+						picker.Locale = locale;
 				}
 			}
-
-			picker?.UpdateTime(timePicker);
-
-			var time = timePicker.Time;
-
-			mauiTimePicker.Text = time.ToFormattedString(format, cultureInfo);
 
 			mauiTimePicker.UpdateCharacterSpacing(timePicker);
 		}

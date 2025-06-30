@@ -71,20 +71,6 @@ namespace Microsoft.Maui.Handlers
 			{
 				VirtualView.Time = e.NewTime;
 				VirtualView.InvalidateMeasure();
-
-				var culture = System.Globalization.CultureInfo.CurrentCulture;
-				var timeFormat = culture.DateTimeFormat.ShortTimePattern;
-				var platformView = sender as TimePicker;
-
-				if (platformView != null)
-				{
-
-					if (!string.IsNullOrEmpty(timeFormat) && timeFormat.Contains('H', StringComparison.Ordinal))
-						platformView.ClockIdentifier = "24HourClock";
-					else
-						platformView.ClockIdentifier = "12HourClock";
-				}
-
 			}
 		}
 	}
