@@ -87,8 +87,6 @@ namespace Microsoft.Maui.Handlers
 			//	VirtualView.Date = args.NewDate.Value.Date;
 			//}
 
-			// Update language in case culture has changed since initialization
-
 			VirtualView.Date = args.NewDate.Value.Date;
 		}
 
