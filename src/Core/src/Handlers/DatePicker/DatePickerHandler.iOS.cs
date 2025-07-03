@@ -29,12 +29,18 @@ namespace Microsoft.Maui.Handlers
 				}
 			}
 
+			// Subscribe to culture changes
+			CultureTracker.Subscribe(this, OnCultureChanged);
+
 			base.ConnectHandler(platformView);
 		}
 
 		protected override void DisconnectHandler(MauiDatePicker platformView)
 		{
 			platformView.MauiDatePickerDelegate = null;
+
+			// Unsubscribe from culture changes
+			CultureTracker.Unsubscribe(this);
 
 			base.DisconnectHandler(platformView);
 		}
@@ -125,6 +131,16 @@ namespace Microsoft.Maui.Handlers
 				return;
 
 			VirtualView.Date = DatePickerDialog.Date.ToDateTime().Date;
+		}
+
+		void OnCultureChanged()
+		{
+			// Refresh the date format when culture changes
+			if (PlatformView != null && VirtualView != null)
+			{
+				var picker = DatePickerDialog;
+				PlatformView.UpdateDate(VirtualView, picker);
+			}
 		}
 
 		class DatePickerDelegate : MauiDatePickerDelegate

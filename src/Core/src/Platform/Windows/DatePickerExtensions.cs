@@ -9,6 +9,9 @@ namespace Microsoft.Maui.Platform
 	{
 		public static void UpdateDate(this CalendarDatePicker platformDatePicker, IDatePicker datePicker)
 		{
+			// Check for culture changes before updating
+			CultureTracker.CheckForCultureChanges();
+
 			var date = datePicker.Date;
 			platformDatePicker.UpdateDate(date);
 
