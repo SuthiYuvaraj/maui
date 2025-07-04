@@ -55,9 +55,6 @@ namespace Microsoft.Maui.Platform
 
 		internal static void SetText(this MauiDatePicker platformDatePicker, IDatePicker datePicker)
 		{
-			// Check for culture changes before updating
-			CultureTracker.CheckForCultureChanges();
-
 			platformDatePicker.Text = datePicker.Date.ToString(datePicker.Format);
 		}
 	}

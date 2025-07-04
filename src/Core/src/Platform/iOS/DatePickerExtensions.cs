@@ -56,9 +56,6 @@ namespace Microsoft.Maui.Platform
 
 		public static void UpdateDate(this MauiDatePicker platformDatePicker, IDatePicker datePicker, UIDatePicker? picker)
 		{
-			// Check for culture changes before updating
-			CultureTracker.CheckForCultureChanges();
-
 			if (picker != null && picker.Date.ToDateTime().Date != datePicker.Date.Date)
 				picker.SetDate(datePicker.Date.ToNSDate(), false);
 

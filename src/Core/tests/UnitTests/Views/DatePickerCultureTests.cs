@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Threading;
 using Microsoft.Maui.Controls;
 using Xunit;
 
@@ -31,9 +32,42 @@ namespace Microsoft.Maui.UnitTests.Views
 			try
 			{
 				CultureInfo.CurrentCulture = new CultureInfo("de-DE");
-				CultureTracker.CheckForCultureChanges();
+				
+				// Wait a bit for the timer to detect the change (max 200ms)
+				Thread.Sleep(250);
 				
 				Assert.True(called);
+			}
+			finally
+			{
+				CultureInfo.CurrentCulture = originalCulture;
+				CultureTracker.Unsubscribe(subscriber);
+			}
+		}
+
+		[Fact]
+		public void DatePickerCultureTrackerAutoDetection()
+		{
+			var callCount = 0;
+			var subscriber = new object();
+			
+			CultureTracker.Subscribe(subscriber, () => callCount++);
+			
+			var originalCulture = CultureInfo.CurrentCulture;
+			try
+			{
+				// Change culture multiple times
+				CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+				Thread.Sleep(150); // Allow detection
+				
+				CultureInfo.CurrentCulture = new CultureInfo("fr-FR");
+				Thread.Sleep(150); // Allow detection
+				
+				CultureInfo.CurrentCulture = new CultureInfo("ja-JP");
+				Thread.Sleep(150); // Allow detection
+				
+				// Should have detected at least 3 culture changes
+				Assert.True(callCount >= 3, $"Expected at least 3 culture changes, but got {callCount}");
 			}
 			finally
 			{

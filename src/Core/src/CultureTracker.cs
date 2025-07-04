@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Threading;
 
 namespace Microsoft.Maui
 {
@@ -11,6 +12,8 @@ namespace Microsoft.Maui
 	{
 		static CultureInfo? s_currentCulture;
 		static readonly ConcurrentDictionary<WeakReference, Action> s_subscribers = new();
+		static Timer? s_cultureCheckTimer;
+		static readonly object s_lockObject = new();
 
 		/// <summary>
 		/// Checks if the culture has changed since the last call and notifies subscribers if it has.
@@ -35,6 +38,19 @@ namespace Microsoft.Maui
 		{
 			var weakRef = new WeakReference(subscriber);
 			s_subscribers.TryAdd(weakRef, action);
+			
+			// Start monitoring when first subscriber is added
+			lock (s_lockObject)
+			{
+				if (s_cultureCheckTimer == null && s_subscribers.Count > 0)
+				{
+					// Initialize current culture if not set
+					s_currentCulture = CultureInfo.CurrentCulture;
+					
+					// Check for culture changes every 100ms when there are subscribers
+					s_cultureCheckTimer = new Timer(OnTimerTick, null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+				}
+			}
 		}
 
 		/// <summary>
@@ -52,6 +68,21 @@ namespace Microsoft.Maui
 					break;
 				}
 			}
+
+			// Stop monitoring when no subscribers remain
+			lock (s_lockObject)
+			{
+				if (s_subscribers.Count == 0 && s_cultureCheckTimer != null)
+				{
+					s_cultureCheckTimer.Dispose();
+					s_cultureCheckTimer = null;
+				}
+			}
+		}
+
+		static void OnTimerTick(object? state)
+		{
+			CheckForCultureChanges();
 		}
 
 		static void NotifyCultureChanged()
@@ -82,6 +113,16 @@ namespace Microsoft.Maui
 			foreach (var deadRef in deadRefs)
 			{
 				s_subscribers.TryRemove(deadRef, out _);
+			}
+
+			// Stop monitoring if all references are dead
+			lock (s_lockObject)
+			{
+				if (s_subscribers.Count == 0 && s_cultureCheckTimer != null)
+				{
+					s_cultureCheckTimer.Dispose();
+					s_cultureCheckTimer = null;
+				}
 			}
 		}
 	}
