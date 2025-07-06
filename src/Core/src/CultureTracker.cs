@@ -10,21 +10,22 @@ namespace Microsoft.Maui
 	/// </summary>
 	internal static class CultureTracker
 	{
-		static CultureInfo? s_currentCulture;
+		static string? s_currentCultureName;
 		static readonly ConcurrentDictionary<WeakReference, Action> s_subscribers = new();
 		static Timer? s_cultureCheckTimer;
 		static readonly object s_lockObject = new();
+		static int s_subscriberCount;
 
 		/// <summary>
 		/// Checks if the culture has changed since the last call and notifies subscribers if it has.
 		/// </summary>
 		public static void CheckForCultureChanges()
 		{
-			var currentCulture = CultureInfo.CurrentCulture;
+			var currentCultureName = CultureInfo.CurrentCulture.Name;
 			
-			if (s_currentCulture == null || !s_currentCulture.Equals(currentCulture))
+			if (s_currentCultureName == null || !s_currentCultureName.Equals(currentCultureName, StringComparison.Ordinal))
 			{
-				s_currentCulture = currentCulture;
+				s_currentCultureName = currentCultureName;
 				NotifyCultureChanged();
 			}
 		}
@@ -36,16 +37,17 @@ namespace Microsoft.Maui
 		/// <param name="action">The action to invoke when culture changes</param>
 		public static void Subscribe(object subscriber, Action action)
 		{
-			var weakRef = new WeakReference(subscriber);
-			s_subscribers.TryAdd(weakRef, action);
-			
-			// Start monitoring when first subscriber is added
 			lock (s_lockObject)
 			{
-				if (s_cultureCheckTimer == null && s_subscribers.Count > 0)
+				var weakRef = new WeakReference(subscriber);
+				s_subscribers.TryAdd(weakRef, action);
+				s_subscriberCount = s_subscribers.Count;
+				
+				// Start monitoring when first subscriber is added
+				if (s_cultureCheckTimer == null && s_subscriberCount > 0)
 				{
 					// Initialize current culture if not set
-					s_currentCulture = CultureInfo.CurrentCulture;
+					s_currentCultureName = CultureInfo.CurrentCulture.Name;
 					
 					// Check for culture changes every 100ms when there are subscribers
 					s_cultureCheckTimer = new Timer(OnTimerTick, null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
@@ -59,20 +61,22 @@ namespace Microsoft.Maui
 		/// <param name="subscriber">The object to unsubscribe</param>
 		public static void Unsubscribe(object subscriber)
 		{
-			// Find and remove the weak reference
-			foreach (var kvp in s_subscribers)
-			{
-				if (kvp.Key.IsAlive && ReferenceEquals(kvp.Key.Target, subscriber))
-				{
-					s_subscribers.TryRemove(kvp.Key, out _);
-					break;
-				}
-			}
-
-			// Stop monitoring when no subscribers remain
 			lock (s_lockObject)
 			{
-				if (s_subscribers.Count == 0 && s_cultureCheckTimer != null)
+				// Find and remove the weak reference
+				foreach (var kvp in s_subscribers)
+				{
+					if (kvp.Key.IsAlive && ReferenceEquals(kvp.Key.Target, subscriber))
+					{
+						s_subscribers.TryRemove(kvp.Key, out _);
+						break;
+					}
+				}
+
+				s_subscriberCount = s_subscribers.Count;
+
+				// Stop monitoring when no subscribers remain
+				if (s_subscriberCount == 0 && s_cultureCheckTimer != null)
 				{
 					s_cultureCheckTimer.Dispose();
 					s_cultureCheckTimer = null;
@@ -118,7 +122,8 @@ namespace Microsoft.Maui
 			// Stop monitoring if all references are dead
 			lock (s_lockObject)
 			{
-				if (s_subscribers.Count == 0 && s_cultureCheckTimer != null)
+				s_subscriberCount = s_subscribers.Count;
+				if (s_subscriberCount == 0 && s_cultureCheckTimer != null)
 				{
 					s_cultureCheckTimer.Dispose();
 					s_cultureCheckTimer = null;
