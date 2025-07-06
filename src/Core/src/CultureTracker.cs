@@ -1,34 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Threading;
 
 namespace Microsoft.Maui
 {
 	/// <summary>
-	/// Provides culture change detection functionality for MAUI controls.
+	/// Provides culture change notification functionality for MAUI controls.
 	/// </summary>
-	internal static class CultureTracker
+	public static class CultureTracker
 	{
-		static string? s_currentCultureName;
 		static readonly ConcurrentDictionary<WeakReference, Action> s_subscribers = new();
-		static Timer? s_cultureCheckTimer;
-		static readonly object s_lockObject = new();
-		static int s_subscriberCount;
-
-		/// <summary>
-		/// Checks if the culture has changed since the last call and notifies subscribers if it has.
-		/// </summary>
-		public static void CheckForCultureChanges()
-		{
-			var currentCultureName = CultureInfo.CurrentCulture.Name;
-			
-			if (s_currentCultureName == null || !s_currentCultureName.Equals(currentCultureName, StringComparison.Ordinal))
-			{
-				s_currentCultureName = currentCultureName;
-				NotifyCultureChanged();
-			}
-		}
 
 		/// <summary>
 		/// Subscribes an object to culture change notifications.
@@ -37,22 +18,8 @@ namespace Microsoft.Maui
 		/// <param name="action">The action to invoke when culture changes</param>
 		public static void Subscribe(object subscriber, Action action)
 		{
-			lock (s_lockObject)
-			{
-				var weakRef = new WeakReference(subscriber);
-				s_subscribers.TryAdd(weakRef, action);
-				s_subscriberCount = s_subscribers.Count;
-				
-				// Start monitoring when first subscriber is added
-				if (s_cultureCheckTimer == null && s_subscriberCount > 0)
-				{
-					// Initialize current culture if not set
-					s_currentCultureName = CultureInfo.CurrentCulture.Name;
-					
-					// Check for culture changes every 100ms when there are subscribers
-					s_cultureCheckTimer = new Timer(OnTimerTick, null, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
-				}
-			}
+			var weakRef = new WeakReference(subscriber);
+			s_subscribers.TryAdd(weakRef, action);
 		}
 
 		/// <summary>
@@ -61,35 +28,29 @@ namespace Microsoft.Maui
 		/// <param name="subscriber">The object to unsubscribe</param>
 		public static void Unsubscribe(object subscriber)
 		{
-			lock (s_lockObject)
+			// Find and remove the weak reference
+			foreach (var kvp in s_subscribers)
 			{
-				// Find and remove the weak reference
-				foreach (var kvp in s_subscribers)
+				if (kvp.Key.IsAlive && ReferenceEquals(kvp.Key.Target, subscriber))
 				{
-					if (kvp.Key.IsAlive && ReferenceEquals(kvp.Key.Target, subscriber))
-					{
-						s_subscribers.TryRemove(kvp.Key, out _);
-						break;
-					}
-				}
-
-				s_subscriberCount = s_subscribers.Count;
-
-				// Stop monitoring when no subscribers remain
-				if (s_subscriberCount == 0 && s_cultureCheckTimer != null)
-				{
-					s_cultureCheckTimer.Dispose();
-					s_cultureCheckTimer = null;
+					s_subscribers.TryRemove(kvp.Key, out _);
+					break;
 				}
 			}
 		}
 
-		static void OnTimerTick(object? state)
-		{
-			CheckForCultureChanges();
-		}
-
-		static void NotifyCultureChanged()
+		/// <summary>
+		/// Notifies all subscribers that the culture has changed.
+		/// Call this method from your application when you change the culture at runtime.
+		/// </summary>
+		/// <example>
+		/// <code>
+		/// // In your application code when changing culture:
+		/// CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+		/// CultureTracker.NotifyCultureChanged();
+		/// </code>
+		/// </example>
+		public static void NotifyCultureChanged()
 		{
 			// Clean up dead references and notify live ones
 			var deadRefs = new System.Collections.Generic.List<WeakReference>();
@@ -117,17 +78,6 @@ namespace Microsoft.Maui
 			foreach (var deadRef in deadRefs)
 			{
 				s_subscribers.TryRemove(deadRef, out _);
-			}
-
-			// Stop monitoring if all references are dead
-			lock (s_lockObject)
-			{
-				s_subscriberCount = s_subscribers.Count;
-				if (s_subscriberCount == 0 && s_cultureCheckTimer != null)
-				{
-					s_cultureCheckTimer.Dispose();
-					s_cultureCheckTimer = null;
-				}
 			}
 		}
 	}

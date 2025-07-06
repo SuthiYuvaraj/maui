@@ -1,4 +1,5 @@
 #nullable enable
+Microsoft.Maui.CultureTracker
 Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate.ContextFlyoutItemHandlerUpdate(Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate! original) -> void
 Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate.Deconstruct(out int Index, out Microsoft.Maui.IMenuElement! MenuElement) -> void
 Microsoft.Maui.Handlers.LayoutHandlerUpdate.Deconstruct(out int Index, out Microsoft.Maui.IView! View) -> void
@@ -59,6 +60,9 @@ override Microsoft.Maui.SwipeViewSwipeEnded.ToString() -> string!
 override Microsoft.Maui.SwipeViewSwipeStarted.Equals(object? obj) -> bool
 override Microsoft.Maui.SwipeViewSwipeStarted.GetHashCode() -> int
 override Microsoft.Maui.SwipeViewSwipeStarted.ToString() -> string!
+static Microsoft.Maui.CultureTracker.NotifyCultureChanged() -> void
+static Microsoft.Maui.CultureTracker.Subscribe(object! subscriber, System.Action! action) -> void
+static Microsoft.Maui.CultureTracker.Unsubscribe(object! subscriber) -> void
 static Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate.operator !=(Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate? left, Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate? right) -> bool
 static Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate.operator ==(Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate? left, Microsoft.Maui.Handlers.ContextFlyoutItemHandlerUpdate? right) -> bool
 static Microsoft.Maui.Handlers.LayoutHandlerUpdate.operator !=(Microsoft.Maui.Handlers.LayoutHandlerUpdate? left, Microsoft.Maui.Handlers.LayoutHandlerUpdate? right) -> bool
