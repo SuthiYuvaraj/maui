@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using Microsoft.Maui.Controls.CustomAttributes;
 
-namespace Microsoft.Maui.Controls.ControlGallery.Issues
+namespace Maui.Controls.Sample.Issues
 {
-	public partial class ItemSizingStrategyMeasureFirstItem : ContentPage
+	[Issue(IssueTracker.Github, 0, "CollectionView2 ItemSizingStrategy MeasureFirstItem Fix", PlatformAffected.iOS | PlatformAffected.Windows)]
+	public partial class ItemSizingStrategyMeasureFirstItem : TestContentPage
 	{
 		public ObservableCollection<TestItem> Items { get; set; }
 
