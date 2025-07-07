@@ -244,6 +244,33 @@ namespace Microsoft.Maui.Controls
 					this.Window is null; // user has set the main page to a different shell instance
 			}
 
+			// Additional check: Don't disconnect if we're just switching between tabs in the same section
+			// This prevents unnecessary page recreation and multiple Loaded events
+			if (disconnect && Parent is ShellSection currentSection && 
+			    currentSection.Parent is ShellItem currentItem && 
+			    shell?.CurrentItem == currentItem)
+			{
+				// We're still within the same ShellItem, just switching tabs
+				// Only disconnect if this specific ShellContent is not the current one
+				// and it's not adjacent to the current one (to allow for smooth tab transitions)
+				if (currentSection.CurrentItem == this)
+				{
+					disconnect = false;
+				}
+				else
+				{
+					var items = currentSection.Items;
+					var currentIndex = items.IndexOf(currentSection.CurrentItem);
+					var thisIndex = items.IndexOf(this);
+					
+					// Keep adjacent tabs loaded to allow for smooth transitions and swipe gestures
+					if (currentIndex >= 0 && thisIndex >= 0 && Math.Abs(currentIndex - thisIndex) <= 1)
+					{
+						disconnect = false;
+					}
+				}
+			}
+
 			if (!disconnect)
 			{
 				shell?.NotifyFlyoutBehaviorObservers();
