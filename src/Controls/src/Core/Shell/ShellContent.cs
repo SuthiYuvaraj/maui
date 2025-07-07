@@ -246,6 +246,7 @@ namespace Microsoft.Maui.Controls
 
 			// Additional check: Don't disconnect if we're just switching between tabs in the same section
 			// This prevents unnecessary page recreation and multiple Loaded events
+			// Fixes: https://github.com/dotnet/maui/issues/11
 			if (disconnect && Parent is ShellSection currentSection && 
 			    currentSection.Parent is ShellItem currentItem && 
 			    shell?.CurrentItem == currentItem)
@@ -264,6 +265,7 @@ namespace Microsoft.Maui.Controls
 					var thisIndex = items.IndexOf(this);
 					
 					// Keep adjacent tabs loaded to allow for smooth transitions and swipe gestures
+					// This prevents the erratic Page.Loaded events described in the issue
 					if (currentIndex >= 0 && thisIndex >= 0 && Math.Abs(currentIndex - thisIndex) <= 1)
 					{
 						disconnect = false;
