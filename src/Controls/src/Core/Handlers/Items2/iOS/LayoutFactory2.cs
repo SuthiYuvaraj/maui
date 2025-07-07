@@ -11,16 +11,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items2;
 internal static class LayoutFactory2
 {
 	public static UICollectionViewLayout CreateList(LinearItemsLayout linearItemsLayout,
-		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> linearItemsLayout.Orientation == ItemsLayoutOrientation.Vertical
-			? CreateVerticalList(linearItemsLayout, groupingInfo, headerFooterInfo)
-			: CreateHorizontalList(linearItemsLayout, groupingInfo, headerFooterInfo);
+			? CreateVerticalList(linearItemsLayout, groupingInfo, headerFooterInfo, itemSizingStrategy)
+			: CreateHorizontalList(linearItemsLayout, groupingInfo, headerFooterInfo, itemSizingStrategy);
 
 	public static UICollectionViewLayout CreateGrid(GridItemsLayout gridItemsLayout,
-	 LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+	 LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> gridItemsLayout.Orientation == ItemsLayoutOrientation.Vertical
-			? CreateVerticalGrid(gridItemsLayout, groupingInfo, headerFooterInfo)
-			: CreateHorizontalGrid(gridItemsLayout, groupingInfo, headerFooterInfo);
+			? CreateVerticalGrid(gridItemsLayout, groupingInfo, headerFooterInfo, itemSizingStrategy)
+			: CreateHorizontalGrid(gridItemsLayout, groupingInfo, headerFooterInfo, itemSizingStrategy);
 
 	static NSCollectionLayoutBoundarySupplementaryItem[] CreateSupplementaryItems(LayoutGroupingInfo? groupingInfo, LayoutHeaderFooterInfo? layoutHeaderFooterInfo,
 		UICollectionViewScrollDirection scrollDirection, NSCollectionLayoutDimension width, NSCollectionLayoutDimension height)
@@ -83,8 +83,14 @@ internal static class LayoutFactory2
 		return [];
 	}
 
-	static UICollectionViewLayout CreateListLayout(UICollectionViewScrollDirection scrollDirection, LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo layoutHeaderFooterInfo, LayoutSnapInfo snapInfo, NSCollectionLayoutDimension itemWidth, NSCollectionLayoutDimension itemHeight, NSCollectionLayoutDimension groupWidth, NSCollectionLayoutDimension groupHeight, double itemSpacing, Func<Thickness>? peekAreaInsetsFunc)
+	static UICollectionViewLayout CreateListLayout(UICollectionViewScrollDirection scrollDirection, LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo layoutHeaderFooterInfo, LayoutSnapInfo snapInfo, NSCollectionLayoutDimension itemWidth, NSCollectionLayoutDimension itemHeight, NSCollectionLayoutDimension groupWidth, NSCollectionLayoutDimension groupHeight, double itemSpacing, Func<Thickness>? peekAreaInsetsFunc, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 	{
+		// For MeasureFirstItem, create a custom layout that measures the first item and applies that size to all items
+		if (itemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+		{
+			return new MeasureFirstItemCollectionViewLayout(snapInfo, scrollDirection, itemSpacing, groupingInfo, layoutHeaderFooterInfo);
+		}
+
 		var layoutConfiguration = new UICollectionViewCompositionalLayoutConfiguration();
 		layoutConfiguration.ScrollDirection = scrollDirection;
 
@@ -144,7 +150,7 @@ internal static class LayoutFactory2
 
 
 
-	static UICollectionViewLayout CreateGridLayout(UICollectionViewScrollDirection scrollDirection, LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, LayoutSnapInfo snapInfo, NSCollectionLayoutDimension itemWidth, NSCollectionLayoutDimension itemHeight, NSCollectionLayoutDimension groupWidth, NSCollectionLayoutDimension groupHeight, double verticalItemSpacing, double horizontalItemSpacing, int columns)
+	static UICollectionViewLayout CreateGridLayout(UICollectionViewScrollDirection scrollDirection, LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, LayoutSnapInfo snapInfo, NSCollectionLayoutDimension itemWidth, NSCollectionLayoutDimension itemHeight, NSCollectionLayoutDimension groupWidth, NSCollectionLayoutDimension groupHeight, double verticalItemSpacing, double horizontalItemSpacing, int columns, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 	{
 		var layoutConfiguration = new UICollectionViewCompositionalLayoutConfiguration();
 		layoutConfiguration.ScrollDirection = scrollDirection;
@@ -195,7 +201,7 @@ internal static class LayoutFactory2
 	}
 
 	public static UICollectionViewLayout CreateVerticalList(LinearItemsLayout linearItemsLayout,
-		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> CreateListLayout(UICollectionViewScrollDirection.Vertical,
 			groupingInfo,
 			headerFooterInfo,
@@ -207,11 +213,12 @@ internal static class LayoutFactory2
 			NSCollectionLayoutDimension.CreateFractionalWidth(1f),
 			NSCollectionLayoutDimension.CreateEstimated(30f),
 			linearItemsLayout.ItemSpacing,
-			null);
+			null,
+			itemSizingStrategy);
 
 
 	public static UICollectionViewLayout CreateHorizontalList(LinearItemsLayout linearItemsLayout,
-		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> CreateListLayout(UICollectionViewScrollDirection.Horizontal,
 			groupingInfo,
 			headerFooterInfo,
@@ -223,10 +230,11 @@ internal static class LayoutFactory2
 			NSCollectionLayoutDimension.CreateEstimated(30f),
 			NSCollectionLayoutDimension.CreateFractionalHeight(1f),
 			linearItemsLayout.ItemSpacing,
-			null);
+			null,
+			itemSizingStrategy);
 
 	public static UICollectionViewLayout CreateVerticalGrid(GridItemsLayout gridItemsLayout,
-		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> CreateGridLayout(UICollectionViewScrollDirection.Vertical,
 			groupingInfo,
 			headerFooterInfo,
@@ -241,11 +249,12 @@ internal static class LayoutFactory2
 			NSCollectionLayoutDimension.CreateEstimated(30f),
 			gridItemsLayout.VerticalItemSpacing,
 			gridItemsLayout.HorizontalItemSpacing,
-			gridItemsLayout.Span);
+			gridItemsLayout.Span,
+			itemSizingStrategy);
 
 
 	public static UICollectionViewLayout CreateHorizontalGrid(GridItemsLayout gridItemsLayout,
-		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo, ItemSizingStrategy itemSizingStrategy = ItemSizingStrategy.MeasureAllItems)
 		=> CreateGridLayout(UICollectionViewScrollDirection.Horizontal,
 			groupingInfo,
 			headerFooterInfo,
@@ -260,7 +269,8 @@ internal static class LayoutFactory2
 			NSCollectionLayoutDimension.CreateFractionalHeight(1f),
 			gridItemsLayout.VerticalItemSpacing,
 			gridItemsLayout.HorizontalItemSpacing,
-			gridItemsLayout.Span);
+			gridItemsLayout.Span,
+			itemSizingStrategy);
 
 
 #nullable disable
@@ -496,6 +506,161 @@ internal static class LayoutFactory2
 
 			return Items.SnapHelpers.AdjustContentOffset(CollectionView.ContentOffset, currentItem.Frame, viewport, alignment,
 				Configuration.ScrollDirection);
+		}
+	}
+
+	// Custom layout for handling MeasureFirstItem strategy
+	class MeasureFirstItemCollectionViewLayout : UICollectionViewFlowLayout
+	{
+		LayoutSnapInfo _snapInfo;
+		double _itemSpacing;
+		LayoutGroupingInfo _groupingInfo;
+		LayoutHeaderFooterInfo _headerFooterInfo;
+		CGSize? _measuredItemSize;
+
+		public MeasureFirstItemCollectionViewLayout(LayoutSnapInfo snapInfo, UICollectionViewScrollDirection scrollDirection, double itemSpacing, LayoutGroupingInfo groupingInfo, LayoutHeaderFooterInfo headerFooterInfo)
+		{
+			_snapInfo = snapInfo;
+			_itemSpacing = itemSpacing;
+			_groupingInfo = groupingInfo;
+			_headerFooterInfo = headerFooterInfo;
+			ScrollDirection = scrollDirection;
+			
+			if (scrollDirection == UICollectionViewScrollDirection.Vertical)
+			{
+				MinimumLineSpacing = (nfloat)itemSpacing;
+			}
+			else
+			{
+				MinimumInteritemSpacing = (nfloat)itemSpacing;
+			}
+			
+			// Start with estimated size, will be updated after measuring first item
+			EstimatedItemSize = new CGSize(100, 44);
+		}
+
+		public override void PrepareLayout()
+		{
+			base.PrepareLayout();
+			
+			// If we haven't measured the first item yet and we have items
+			if (!_measuredItemSize.HasValue && CollectionView.NumberOfItemsInSection(0) > 0)
+			{
+				MeasureFirstItem();
+			}
+		}
+
+		void MeasureFirstItem()
+		{
+			if (CollectionView?.DataSource == null) return;
+
+			// Try to get the first visible cell
+			var indexPath = NSIndexPath.FromItemSection(0, 0);
+			var cell = CollectionView.CellForItem(indexPath);
+			
+			if (cell != null)
+			{
+				// Measure the actual cell
+				var cellSize = cell.Frame.Size;
+				if (cellSize.Width > 0 && cellSize.Height > 0)
+				{
+					_measuredItemSize = cellSize;
+					ItemSize = cellSize;
+					EstimatedItemSize = CGSize.Empty; // Disable auto-sizing
+					InvalidateLayout(); // Trigger layout update
+				}
+			}
+		}
+
+		public override CGSize GetSizeForItem(UICollectionView collectionView, UICollectionViewLayout layout, NSIndexPath indexPath)
+		{
+			if (_measuredItemSize.HasValue)
+			{
+				return _measuredItemSize.Value;
+			}
+			
+			// If we haven't measured yet, try to measure now
+			if (indexPath.Item == 0)
+			{
+				// For the first item, we need to measure it
+				// This is a simplified approach - in a full implementation you'd create a prototype cell
+				var estimatedSize = EstimatedItemSize;
+				if (estimatedSize.Width > 0 && estimatedSize.Height > 0)
+				{
+					_measuredItemSize = estimatedSize;
+					ItemSize = estimatedSize;
+					EstimatedItemSize = CGSize.Empty;
+				}
+				return estimatedSize;
+			}
+			
+			return base.GetSizeForItem(collectionView, layout, indexPath);
+		}
+
+		public override CGPoint TargetContentOffset(CGPoint proposedContentOffset, CGPoint scrollingVelocity)
+		{
+			var snapPointsType = _snapInfo.SnapType;
+			var alignment = _snapInfo.SnapAligment;
+
+			if (snapPointsType == SnapPointsType.None)
+			{
+				return base.TargetContentOffset(proposedContentOffset, scrollingVelocity);
+			}
+
+			if (snapPointsType == SnapPointsType.MandatorySingle)
+			{
+				return ScrollSingle(alignment, proposedContentOffset, scrollingVelocity);
+			}
+
+			// Get the viewport of the UICollectionView at the proposed content offset
+			var viewport = new CGRect(proposedContentOffset, CollectionView.Bounds.Size);
+			var visibleElements = LayoutAttributesForElementsInRect(viewport);
+
+			if (visibleElements.Length == 0)
+			{
+				return base.TargetContentOffset(proposedContentOffset, scrollingVelocity);
+			}
+
+			if (visibleElements.Length == 1)
+			{
+				return Items.SnapHelpers.AdjustContentOffset(proposedContentOffset, visibleElements[0].Frame, viewport,
+					alignment, ScrollDirection);
+			}
+
+			var alignmentTarget = Items.SnapHelpers.FindAlignmentTarget(alignment, proposedContentOffset,
+				CollectionView, ScrollDirection);
+
+			var bestCandidate = Items.SnapHelpers.FindBestSnapCandidate(visibleElements, viewport, alignmentTarget);
+
+			if (bestCandidate != null)
+			{
+				return Items.SnapHelpers.AdjustContentOffset(proposedContentOffset, bestCandidate.Frame, viewport, alignment,
+					ScrollDirection);
+			}
+
+			return Items.SnapHelpers.AdjustContentOffset(proposedContentOffset, visibleElements[0].Frame, viewport, alignment,
+				ScrollDirection);
+		}
+
+		CGPoint ScrollSingle(SnapPointsAlignment alignment, CGPoint proposedContentOffset, CGPoint scrollingVelocity)
+		{
+			var contentOffset = CollectionView.ContentOffset;
+			var viewport = new CGRect(contentOffset, CollectionView.Bounds.Size);
+			var alignmentTarget = Items.SnapHelpers.FindAlignmentTarget(alignment, contentOffset, CollectionView, ScrollDirection);
+			var visibleElements = LayoutAttributesForElementsInRect(viewport);
+			var currentItem = Items.SnapHelpers.FindBestSnapCandidate(visibleElements, viewport, alignmentTarget);
+
+			if (currentItem == null)
+			{
+				return base.TargetContentOffset(proposedContentOffset, scrollingVelocity);
+			}
+
+			var currentIndex = visibleElements.IndexOf(currentItem);
+			var span = 1;
+			currentItem = Items.SnapHelpers.FindNextItem(visibleElements, ScrollDirection, span, scrollingVelocity, currentIndex);
+
+			return Items.SnapHelpers.AdjustContentOffset(CollectionView.ContentOffset, currentItem.Frame, viewport, alignment,
+				ScrollDirection);
 		}
 	}
 

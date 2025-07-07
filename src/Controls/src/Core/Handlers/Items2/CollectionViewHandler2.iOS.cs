@@ -162,19 +162,19 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 			if (itemsLayout is GridItemsLayout gridItemsLayout)
 			{
-				return LayoutFactory2.CreateGrid(gridItemsLayout, groupInfo, headerFooterInfo);
+				return LayoutFactory2.CreateGrid(gridItemsLayout, groupInfo, headerFooterInfo, itemSizingStrategy);
 			}
 
 			if (itemsLayout is LinearItemsLayout listItemsLayout)
 			{
-				return LayoutFactory2.CreateList(listItemsLayout, groupInfo, headerFooterInfo);
+				return LayoutFactory2.CreateList(listItemsLayout, groupInfo, headerFooterInfo, itemSizingStrategy);
 			}
 
 			// Fall back to vertical list
 			var fallbackItemsLayout = new LinearItemsLayout(ItemsLayoutOrientation.Vertical);
 			// Manually setting the value to ensure the property changed event is properly wired..
 			ItemsView.ItemsLayout = fallbackItemsLayout;
-			return LayoutFactory2.CreateList(fallbackItemsLayout, groupInfo, headerFooterInfo);
+			return LayoutFactory2.CreateList(fallbackItemsLayout, groupInfo, headerFooterInfo, itemSizingStrategy);
 		}
 
 		public static void MapHeaderTemplate(CollectionViewHandler2 handler, StructuredItemsView itemsView)
