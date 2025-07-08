@@ -552,50 +552,39 @@ internal static class LayoutFactory2
 
 		void MeasureFirstItem()
 		{
-			if (CollectionView?.DataSource == null) return;
+			if (CollectionView?.NumberOfItemsInSection(0) == 0) return;
 
-			// Try to get the first visible cell
+			// For MeasureFirstItem strategy, we need to measure a prototype cell and apply that size to all items
+			// This is similar to the pattern used in ItemsViewLayout.DetermineCellSize()
+			
+			// Try to get the first visible cell to measure
 			var indexPath = NSIndexPath.FromItemSection(0, 0);
 			var cell = CollectionView.CellForItem(indexPath);
 			
-			if (cell != null)
+			if (cell != null && cell.Frame.Size.Width > 0 && cell.Frame.Size.Height > 0)
 			{
-				// Measure the actual cell
-				var cellSize = cell.Frame.Size;
-				if (cellSize.Width > 0 && cellSize.Height > 0)
+				// Use the size of the first visible cell
+				_measuredItemSize = cell.Frame.Size;
+				ItemSize = _measuredItemSize.Value;
+				EstimatedItemSize = CGSize.Empty; // Disable auto-sizing for fixed size
+				InvalidateLayout();
+			}
+			else
+			{
+				// If no visible cell is available, we'll use the estimated size and update later
+				// This follows the pattern from ItemsViewLayout where EstimatedItemSize is set initially
+				// and updated once a cell becomes available
+				if (EstimatedItemSize.Width > 0 && EstimatedItemSize.Height > 0)
 				{
-					_measuredItemSize = cellSize;
-					ItemSize = cellSize;
-					EstimatedItemSize = CGSize.Empty; // Disable auto-sizing
-					InvalidateLayout(); // Trigger layout update
+					_measuredItemSize = EstimatedItemSize;
+					ItemSize = _measuredItemSize.Value;
+					EstimatedItemSize = CGSize.Empty;
+					InvalidateLayout();
 				}
 			}
 		}
 
-		public override CGSize GetSizeForItem(UICollectionView collectionView, UICollectionViewLayout layout, NSIndexPath indexPath)
-		{
-			if (_measuredItemSize.HasValue)
-			{
-				return _measuredItemSize.Value;
-			}
-			
-			// If we haven't measured yet, try to measure now
-			if (indexPath.Item == 0)
-			{
-				// For the first item, we need to measure it
-				// This is a simplified approach - in a full implementation you'd create a prototype cell
-				var estimatedSize = EstimatedItemSize;
-				if (estimatedSize.Width > 0 && estimatedSize.Height > 0)
-				{
-					_measuredItemSize = estimatedSize;
-					ItemSize = estimatedSize;
-					EstimatedItemSize = CGSize.Empty;
-				}
-				return estimatedSize;
-			}
-			
-			return base.GetSizeForItem(collectionView, layout, indexPath);
-		}
+
 
 		public override CGPoint TargetContentOffset(CGPoint proposedContentOffset, CGPoint scrollingVelocity)
 		{
