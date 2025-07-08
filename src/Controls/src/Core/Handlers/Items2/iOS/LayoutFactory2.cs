@@ -526,14 +526,10 @@ internal static class LayoutFactory2
 			_headerFooterInfo = headerFooterInfo;
 			ScrollDirection = scrollDirection;
 			
-			if (scrollDirection == UICollectionViewScrollDirection.Vertical)
-			{
-				MinimumLineSpacing = (nfloat)itemSpacing;
-			}
-			else
-			{
-				MinimumInteritemSpacing = (nfloat)itemSpacing;
-			}
+			// For both vertical and horizontal layouts, MinimumLineSpacing controls the main axis spacing
+			// This follows the pattern used in other MAUI layouts
+			MinimumLineSpacing = (nfloat)itemSpacing;
+			MinimumInteritemSpacing = 0; // Cross-axis spacing set to 0 for single item per line behavior
 			
 			// Start with estimated size, will be updated after measuring first item
 			EstimatedItemSize = new CGSize(100, 44);
