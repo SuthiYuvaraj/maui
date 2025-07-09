@@ -33,6 +33,9 @@ namespace Microsoft.Maui.Handlers
 			platformView.ViewAttachedToWindow += OnViewAttachedToWindow;
 			platformView.ViewDetachedFromWindow += OnViewDetachedFromWindow;
 
+			// Subscribe to culture changes
+			CultureTracker.Subscribe(this, OnCultureChanged);
+
 			if (platformView.IsAttachedToWindow)
 				OnViewAttachedToWindow();
 		}
@@ -60,6 +63,9 @@ namespace Microsoft.Maui.Handlers
 			platformView.ViewAttachedToWindow -= OnViewAttachedToWindow;
 			platformView.ViewDetachedFromWindow -= OnViewDetachedFromWindow;
 			OnViewDetachedFromWindow();
+
+			// Unsubscribe from culture changes
+			CultureTracker.Unsubscribe(this);
 
 			base.DisconnectHandler(platformView);
 		}
@@ -162,6 +168,15 @@ namespace Microsoft.Maui.Handlers
 				currentDialog.Dismiss();
 
 				ShowPickerDialog(currentDialog.DatePicker.Year, currentDialog.DatePicker.Month, currentDialog.DatePicker.DayOfMonth);
+			}
+		}
+
+		void OnCultureChanged()
+		{
+			// Refresh the date format when culture changes
+			if (PlatformView != null && VirtualView != null)
+			{
+				PlatformView.UpdateDate(VirtualView);
 			}
 		}
 	}

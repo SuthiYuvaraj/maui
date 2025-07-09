@@ -11,11 +11,17 @@ namespace Microsoft.Maui.Handlers
 		protected override void ConnectHandler(CalendarDatePicker platformView)
 		{
 			platformView.DateChanged += DateChanged;
+
+			// Subscribe to culture changes
+			CultureTracker.Subscribe(this, OnCultureChanged);
 		}
 
 		protected override void DisconnectHandler(CalendarDatePicker platformView)
 		{
 			platformView.DateChanged -= DateChanged;
+
+			// Unsubscribe from culture changes
+			CultureTracker.Unsubscribe(this);
 		}
 
 		public static partial void MapFormat(IDatePickerHandler handler, IDatePicker datePicker)
@@ -84,6 +90,15 @@ namespace Microsoft.Maui.Handlers
 		public static partial void MapBackground(IDatePickerHandler handler, IDatePicker datePicker)
 		{
 			handler.PlatformView?.UpdateBackground(datePicker);
+		}
+
+		void OnCultureChanged()
+		{
+			// Refresh the date format when culture changes
+			if (PlatformView != null && VirtualView != null)
+			{
+				PlatformView.UpdateDate(VirtualView);
+			}
 		}
 	}
 }

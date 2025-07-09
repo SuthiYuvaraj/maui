@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.Issues.Issue9"
+             Title="DatePicker Culture Change Test">
+    <ScrollView>
+        <StackLayout Padding="20">
+            <Label Text="DatePicker Culture Change Test" FontSize="18" FontAttributes="Bold" Margin="0,0,0,20"/>
+            
+            <Label Text="Instructions:" FontAttributes="Bold"/>
+            <Label Text="1. Note the initial date format below"/>
+            <Label Text="2. Change the culture using the buttons"/>
+            <Label Text="3. Observe that the DatePicker format updates immediately"/>
+            <Label Text="4. Try picking a new date to verify it works properly"/>
+            
+            <StackLayout Orientation="Horizontal" Margin="0,20">
+                <Label Text="Current Culture:" VerticalOptions="Center"/>
+                <Label x:Name="CurrentCultureLabel" Text="{Binding CurrentCulture}" VerticalOptions="Center" FontAttributes="Bold"/>
+            </StackLayout>
+            
+            <DatePicker x:Name="TestDatePicker" 
+                        Date="{Binding TestDate}" 
+                        Format="d"
+                        Margin="0,10"/>
+            
+            <Label Text="Culture Selection:" FontAttributes="Bold" Margin="0,20,0,10"/>
+            
+            <Button Text="English (US)" 
+                    Command="{Binding ChangeCultureCommand}" 
+                    CommandParameter="en-US"
+                    Margin="0,5"/>
+            
+            <Button Text="German (Germany)" 
+                    Command="{Binding ChangeCultureCommand}" 
+                    CommandParameter="de-DE"
+                    Margin="0,5"/>
+            
+            <Button Text="French (France)" 
+                    Command="{Binding ChangeCultureCommand}" 
+                    CommandParameter="fr-FR"
+                    Margin="0,5"/>
+            
+            <Button Text="Japanese (Japan)" 
+                    Command="{Binding ChangeCultureCommand}" 
+                    CommandParameter="ja-JP"
+                    Margin="0,5"/>
+            
+            <Label Text="Test Results:" FontAttributes="Bold" Margin="0,20,0,10"/>
+            <Label x:Name="TestResultsLabel" Text="{Binding TestResults}" BackgroundColor="LightGray" Padding="10"/>
+        </StackLayout>
+    </ScrollView>
+</ContentPage>
