@@ -49,11 +49,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			UpdateScrollBarVisibilityForLoop();
 
-			if (Layout is not null)
-			{
-				_layoutPropertyChanged ??= LayoutPropertyChanged;
-				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
-			}
+			UpdateLayoutPropertyChangeProxy();
 
 			base.ConnectHandler(platformView);
 		}
@@ -458,6 +454,28 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				UpdateSnapPointsType();
 			else if (e.PropertyName == ItemsLayout.SnapPointsAlignmentProperty.PropertyName)
 				UpdateSnapPointsAlignment();
+		}
+
+		public static void MapItemsLayout(CarouselViewHandler handler, CarouselView carouselView)
+		{
+			handler.UpdateLayoutPropertyChangeProxy();
+		}
+
+		void UpdateLayoutPropertyChangeProxy()
+		{
+			// Clean up the old proxy
+			if (_layoutPropertyChangedProxy is not null)
+			{
+				_layoutPropertyChangedProxy.Unsubscribe();
+				_layoutPropertyChangedProxy = null;
+			}
+
+			// Set up the new proxy if Layout is not null
+			if (Layout is not null)
+			{
+				_layoutPropertyChanged ??= LayoutPropertyChanged;
+				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
+			}
 		}
 
 		void UpdateSnapPointsType()
