@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="Maui.Controls.Sample.Issues.CarouselViewSnapPointsTest"
+    Title="CarouselView Snap Points Test">
+    
+    <ScrollView>
+        <StackLayout Padding="20">
+            <Label
+                Text="Test the CarouselView snap points functionality. The buttons below change the snap points properties at runtime." 
+                FontSize="16"
+                Margin="0,0,0,10"/>
+            
+            <Label 
+                x:Name="SnapTypeLabel"
+                Text="Current Snap Type: MandatorySingle"
+                FontSize="14"
+                FontAttributes="Bold"
+                Margin="0,0,0,5"/>
+            
+            <Label 
+                x:Name="SnapAlignmentLabel"
+                Text="Current Snap Alignment: Center"
+                FontSize="14"
+                FontAttributes="Bold"
+                Margin="0,0,0,10"/>
+            
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <Button 
+                    x:Name="ToggleSnapTypeButton"
+                    Grid.Column="0"
+                    Text="Toggle Snap Type"
+                    AutomationId="ToggleSnapTypeButton"
+                    Margin="0,0,5,0"
+                    Clicked="OnToggleSnapType"/>
+                
+                <Button 
+                    x:Name="ToggleSnapAlignmentButton"
+                    Grid.Column="1"
+                    Text="Toggle Snap Alignment"
+                    AutomationId="ToggleSnapAlignmentButton"
+                    Margin="5,0,0,0"
+                    Clicked="OnToggleSnapAlignment"/>
+            </Grid>
+            
+            <Label
+                Text="Scroll the carousel view to test snap points behavior:"
+                FontSize="14"
+                Margin="0,20,0,10"/>
+            
+            <CarouselView
+                x:Name="TestCarouselView"
+                AutomationId="TestCarouselView"
+                HeightRequest="200"
+                Loop="False"
+                VerticalOptions="Center">
+                
+                <CarouselView.ItemsLayout>
+                    <LinearItemsLayout
+                        x:Name="ItemsLayout"
+                        Orientation="Horizontal"
+                        SnapPointsAlignment="Center"
+                        SnapPointsType="MandatorySingle" />
+                </CarouselView.ItemsLayout>
+                
+                <CarouselView.ItemTemplate>
+                    <DataTemplate>
+                        <Border
+                            BackgroundColor="{Binding Color}"
+                            Stroke="DarkGray"
+                            StrokeThickness="2"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="10"/>
+                            </Border.StrokeShape>
+                            
+                            <Label
+                                Text="{Binding Name}"
+                                FontSize="18"
+                                FontAttributes="Bold"
+                                TextColor="White"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"
+                                Margin="40,60"/>
+                        </Border>
+                    </DataTemplate>
+                </CarouselView.ItemTemplate>
+            </CarouselView>
+            
+            <Label
+                Text="Test Instructions:"
+                FontSize="16"
+                FontAttributes="Bold"
+                Margin="0,20,0,5"/>
+            
+            <Label
+                Text="1. Swipe the carousel view horizontally - it should snap to items when SnapPointsType is not 'None'"
+                FontSize="14"
+                Margin="0,0,0,5"/>
+            
+            <Label
+                Text="2. Toggle the snap type to see different behaviors: None (no snapping), Mandatory (snap to items), MandatorySingle (snap to single item)"
+                FontSize="14"
+                Margin="0,0,0,5"/>
+            
+            <Label
+                Text="3. Toggle the snap alignment to see items align to Start, Center, or End"
+                FontSize="14"
+                Margin="0,0,0,5"/>
+        </StackLayout>
+    </ScrollView>
+</ContentPage>

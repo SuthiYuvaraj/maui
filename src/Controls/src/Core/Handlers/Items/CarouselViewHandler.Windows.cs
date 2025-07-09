@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using Microsoft.Maui.Controls.Platform;
 using Microsoft.UI.Xaml;
@@ -27,10 +28,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		bool _isCarouselViewReady;
 		NotifyCollectionChangedEventHandler _collectionChanged;
 		readonly WeakNotifyCollectionChangedProxy _proxy = new();
+		WeakNotifyPropertyChangedProxy _layoutPropertyChangedProxy;
+		PropertyChangedEventHandler _layoutPropertyChanged;
 
-		~CarouselViewHandler() => _proxy.Unsubscribe();
+		~CarouselViewHandler() 
+		{
+			_proxy.Unsubscribe();
+			_layoutPropertyChangedProxy?.Unsubscribe();
+		}
 
-		protected override IItemsLayout Layout { get; }
+		protected override IItemsLayout Layout => ItemsView?.ItemsLayout;
 
 		LinearItemsLayout CarouselItemsLayout => ItemsView?.ItemsLayout;
 		WDataTemplate CarouselItemsViewTemplate => (WDataTemplate)WApp.Current.Resources["CarouselItemsViewDefaultTemplate"];
@@ -41,6 +48,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			platformView.SizeChanged += OnListViewSizeChanged;
 
 			UpdateScrollBarVisibilityForLoop();
+
+			if (Layout is not null)
+			{
+				_layoutPropertyChanged ??= LayoutPropertyChanged;
+				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
+			}
 
 			base.ConnectHandler(platformView);
 		}
@@ -54,6 +67,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				platformView.SizeChanged -= OnListViewSizeChanged;
 				_proxy.Unsubscribe();
+			}
+
+			if (_layoutPropertyChangedProxy is not null)
+			{
+				_layoutPropertyChangedProxy.Unsubscribe();
+				_layoutPropertyChangedProxy = null;
 			}
 
 			if (_scrollViewer != null)
@@ -431,6 +450,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 
 			return WSnapPointsAlignment.Center;
+		}
+
+		void LayoutPropertyChanged(object sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == ItemsLayout.SnapPointsTypeProperty.PropertyName)
+				UpdateSnapPointsType();
+			else if (e.PropertyName == ItemsLayout.SnapPointsAlignmentProperty.PropertyName)
+				UpdateSnapPointsAlignment();
 		}
 
 		void UpdateSnapPointsType()
