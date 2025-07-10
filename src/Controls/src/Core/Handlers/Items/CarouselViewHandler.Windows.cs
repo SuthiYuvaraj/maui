@@ -31,7 +31,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		WeakNotifyPropertyChangedProxy _layoutPropertyChangedProxy;
 		PropertyChangedEventHandler _layoutPropertyChanged;
 
-		~CarouselViewHandler() 
+		~CarouselViewHandler()
 		{
 			_proxy.Unsubscribe();
 			_layoutPropertyChangedProxy?.Unsubscribe();
@@ -52,6 +52,23 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			UpdateLayoutPropertyChangeProxy();
 
 			base.ConnectHandler(platformView);
+		}
+
+		void UpdateLayoutPropertyChangeProxy()
+		{
+			// Clean up the old proxy
+			if (_layoutPropertyChangedProxy is not null)
+			{
+				_layoutPropertyChangedProxy.Unsubscribe();
+				_layoutPropertyChangedProxy = null;
+			}
+
+			// Set up the new proxy if Layout is not null
+			if (Layout is not null)
+			{
+				_layoutPropertyChanged = LayoutPropertyChanged;
+				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
+			}
 		}
 
 		protected override void DisconnectHandler(ListViewBase platformView)
@@ -108,6 +125,9 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			_scrollViewer.ViewChanging += OnScrollViewChanging;
 			_scrollViewer.ViewChanged += OnScrollViewChanged;
 			_scrollViewer.SizeChanged += OnScrollViewSizeChanged;
+
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 
 			if (Element.Loop)
 			{
@@ -243,23 +263,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			if (_scrollViewer != null)
 				_scrollViewer.IsScrollInertiaEnabled = ItemsView.IsBounceEnabled;
-		}
-
-		void UpdateIsSwipeEnabled()
-		{
-			ListViewBase.IsSwipeEnabled = ItemsView.IsSwipeEnabled;
-
-			switch (CarouselItemsLayout.Orientation)
-			{
-				case ItemsLayoutOrientation.Horizontal:
-					ScrollViewer.SetHorizontalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Auto : WScrollMode.Disabled);
-					ScrollViewer.SetHorizontalScrollBarVisibility(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollBarVisibility.Auto : WScrollBarVisibility.Hidden);
-					break;
-				case ItemsLayoutOrientation.Vertical:
-					ScrollViewer.SetVerticalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Auto : WScrollMode.Disabled);
-					ScrollViewer.SetVerticalScrollBarVisibility(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollBarVisibility.Auto : WScrollBarVisibility.Hidden);
-					break;
-			}
 		}
 
 		void UpdatePeekAreaInsets()
@@ -448,60 +451,229 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			return WSnapPointsAlignment.Center;
 		}
 
-		void LayoutPropertyChanged(object sender, PropertyChangedEventArgs e)
-		{
-			if (e.PropertyName == ItemsLayout.SnapPointsTypeProperty.PropertyName)
-				UpdateSnapPointsType();
-			else if (e.PropertyName == ItemsLayout.SnapPointsAlignmentProperty.PropertyName)
-				UpdateSnapPointsAlignment();
-		}
 
+
+#pragma warning disable RS0016 // Add public types and members to the declared API
 		public static void MapItemsLayout(CarouselViewHandler handler, CarouselView carouselView)
+#pragma warning restore RS0016 // Add public types and members to the declared API
 		{
 			handler.UpdateLayoutPropertyChangeProxy();
+			handler.UpdateSnapPointsType();
+			handler.UpdateSnapPointsAlignment();
 		}
 
-		void UpdateLayoutPropertyChangeProxy()
-		{
-			// Clean up the old proxy
-			if (_layoutPropertyChangedProxy is not null)
-			{
-				_layoutPropertyChangedProxy.Unsubscribe();
-				_layoutPropertyChangedProxy = null;
-			}
-
-			// Set up the new proxy if Layout is not null
-			if (Layout is not null)
-			{
-				_layoutPropertyChanged ??= LayoutPropertyChanged;
-				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
-			}
-		}
 
 		void UpdateSnapPointsType()
+
 		{
+
 			if (_scrollViewer == null || CarouselItemsLayout == null)
+
 				return;
 
+			var snapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Horizontal)
-				_scrollViewer.HorizontalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+
+			{
+
+				_scrollViewer.HorizontalSnapPointsType = snapPointsType;
+
+				// For MandatorySingle, ensure proper configuration
+
+				if (CarouselItemsLayout.SnapPointsType == SnapPointsType.MandatorySingle)
+
+				{
+
+					_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+
+					_scrollViewer.HorizontalScrollMode = WScrollMode.Enabled;
+
+					// Ensure items fill the viewport for proper snapping
+
+					if (!Element.Loop)
+
+					{
+
+						_scrollViewer.HorizontalScrollBarVisibility = WScrollBarVisibility.Hidden;
+
+					}
+
+				}
+
+			}
 
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Vertical)
-				_scrollViewer.VerticalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+
+			{
+
+				_scrollViewer.VerticalSnapPointsType = snapPointsType;
+
+				// For MandatorySingle, ensure proper configuration
+
+				if (CarouselItemsLayout.SnapPointsType == SnapPointsType.MandatorySingle)
+
+				{
+
+					_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+
+					_scrollViewer.VerticalScrollMode = WScrollMode.Enabled;
+
+					// Ensure items fill the viewport for proper snapping
+
+					if (!Element.Loop)
+
+					{
+
+						_scrollViewer.VerticalScrollBarVisibility = WScrollBarVisibility.Hidden;
+
+					}
+
+				}
+
+			}
+
 		}
 
 		void UpdateSnapPointsAlignment()
+
 		{
+
 			if (_scrollViewer == null || CarouselItemsLayout == null)
+
 				return;
 
+			var snapPointsAlignment = GetWindowsSnapPointsAlignment(CarouselItemsLayout.SnapPointsAlignment);
+
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Horizontal)
-				_scrollViewer.HorizontalSnapPointsAlignment = GetWindowsSnapPointsAlignment(CarouselItemsLayout.SnapPointsAlignment);
+
+			{
+
+				_scrollViewer.HorizontalSnapPointsAlignment = snapPointsAlignment;
+
+			}
 
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Vertical)
-				_scrollViewer.VerticalSnapPointsAlignment = GetWindowsSnapPointsAlignment(CarouselItemsLayout.SnapPointsAlignment);
+
+			{
+
+				_scrollViewer.VerticalSnapPointsAlignment = snapPointsAlignment;
+
+			}
+
 		}
 
+		void LayoutPropertyChanged(object sender, PropertyChangedEventArgs e)
+
+		{
+
+			if (e.PropertyName == nameof(ItemsLayout.SnapPointsType))
+
+				UpdateSnapPointsType();
+
+			else if (e.PropertyName == nameof(ItemsLayout.SnapPointsAlignment))
+
+				UpdateSnapPointsAlignment();
+
+		}
+
+		void UpdateIsSwipeEnabled()
+
+		{
+
+			if (ListViewBase == null)
+
+				return;
+
+			ListViewBase.IsSwipeEnabled = ItemsView.IsSwipeEnabled;
+
+			// Don't override snap points settings when they're explicitly set
+
+			if (CarouselItemsLayout?.SnapPointsType != SnapPointsType.MandatorySingle)
+
+			{
+
+				switch (CarouselItemsLayout?.Orientation)
+
+				{
+
+					case ItemsLayoutOrientation.Horizontal:
+
+						ScrollViewer.SetHorizontalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Auto : WScrollMode.Disabled);
+
+						ScrollViewer.SetHorizontalScrollBarVisibility(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollBarVisibility.Auto : WScrollBarVisibility.Hidden);
+
+						break;
+
+					case ItemsLayoutOrientation.Vertical:
+
+						ScrollViewer.SetVerticalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Auto : WScrollMode.Disabled);
+
+						ScrollViewer.SetVerticalScrollBarVisibility(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollBarVisibility.Auto : WScrollBarVisibility.Hidden);
+
+						break;
+
+				}
+
+			}
+
+			else
+
+			{
+
+				// For MandatorySingle, we need to ensure scroll mode is enabled for snapping to work
+
+				switch (CarouselItemsLayout?.Orientation)
+
+				{
+
+					case ItemsLayoutOrientation.Horizontal:
+
+						ScrollViewer.SetHorizontalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Enabled : WScrollMode.Disabled);
+
+						break;
+
+					case ItemsLayoutOrientation.Vertical:
+
+						ScrollViewer.SetVerticalScrollMode(ListViewBase, ItemsView.IsSwipeEnabled ? WScrollMode.Enabled : WScrollMode.Disabled);
+
+						break;
+
+				}
+
+			}
+
+		}
+
+		void CarouselScrolled(object sender, ItemsViewScrolledEventArgs e)
+
+		{
+
+			var position = e.CenterItemIndex;
+
+			if (position == -1)
+
+			{
+
+				return;
+
+			}
+
+			if (position == Element.Position)
+
+			{
+
+				return;
+
+			}
+
+			SetCarouselViewPosition(position);
+
+			// Fix for issue #6356: Also update CurrentItem to keep it in sync with Position
+
+			SetCarouselViewCurrentItem(position);
+
+		}
 		void UpdateScrollBarVisibilityForLoop()
 		{
 			if (_scrollViewer == null)
@@ -534,22 +706,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 		}
 
-		void CarouselScrolled(object sender, ItemsViewScrolledEventArgs e)
-		{
-			var position = e.CenterItemIndex;
-
-			if (position == -1)
-			{
-				return;
-			}
-
-			if (position == Element.Position)
-			{
-				return;
-			}
-
-			SetCarouselViewPosition(position);
-		}
 
 		void OnScrollViewChanging(object sender, ScrollViewerViewChangingEventArgs e)
 		{
