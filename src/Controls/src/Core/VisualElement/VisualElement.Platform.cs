@@ -16,6 +16,7 @@ namespace Microsoft.Maui.Controls
 	public partial class VisualElement
 	{
 		IDisposable? _loadedUnloadedToken;
+
 		partial void HandlePlatformUnloadedLoaded()
 		{
 			_loadedUnloadedToken?.Dispose();
@@ -27,7 +28,20 @@ namespace Microsoft.Maui.Controls
 			{
 				if (view.IsLoaded())
 				{
+#if ANDROID
+					// Android-specific: Only send Loaded if this is a genuinely new platform view
+					// or if we haven't fired Loaded for this view yet. This prevents multiple
+					// Loaded events during Shell fragment lifecycle changes.
+					bool shouldSendLoaded = _lastPlatformView != view || !_isLoadedFired;
+					_lastPlatformView = view;
+					
+					if (shouldSendLoaded)
+					{
+						SendLoaded(false);
+					}
+#else
 					SendLoaded(false);
+#endif
 
 					// If SendLoaded caused the unloaded tokens to wire up
 					_loadedUnloadedToken?.Dispose();
@@ -57,6 +71,10 @@ namespace Microsoft.Maui.Controls
 				}
 				else
 				{
+#if ANDROID
+					// Android-specific: Clear the tracked platform view when unloading
+					_lastPlatformView = null;
+#endif
 					SendUnloaded();
 				}
 			}
