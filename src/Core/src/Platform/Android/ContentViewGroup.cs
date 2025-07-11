@@ -84,6 +84,18 @@ namespace Microsoft.Maui.Platform
 			platformWidth = Math.Max(MinimumWidth, platformWidth);
 			platformHeight = Math.Max(MinimumHeight, platformHeight);
 
+			// Update the ContentView's Frame so that Width and Height properties are available
+			// to child elements during layout calculations, especially in CollectionView scenarios
+			if (CrossPlatformLayout is IView contentView)
+			{
+				var currentFrame = contentView.Frame;
+				var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
+				if (currentFrame != newFrame)
+				{
+					contentView.Frame = newFrame;
+				}
+			}
+
 			SetMeasuredDimension((int)platformWidth, (int)platformHeight);
 		}
 
