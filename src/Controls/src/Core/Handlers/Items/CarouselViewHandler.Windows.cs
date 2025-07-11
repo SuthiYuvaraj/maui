@@ -89,6 +89,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return;
 
 			base.UpdateItemsSource();
+
+			// Update snap points after items source changes
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 
 		protected override void UpdateItemTemplate()
@@ -117,6 +121,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				UpdateScrollBarVisibility();
 			}
+
+			// Update snap points when ScrollViewer is found
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 
 		protected override ICollectionView GetCollectionView(CollectionViewSource collectionViewSource)
@@ -483,11 +491,31 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			if (_scrollViewer == null || CarouselItemsLayout == null)
 				return;
 
+			var windowsSnapType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Horizontal)
-				_scrollViewer.HorizontalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+			{
+				_scrollViewer.HorizontalSnapPointsType = windowsSnapType;
+				// Ensure zoom mode is disabled for proper snap point behavior
+				_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+				// Ensure scroll mode is enabled for snap points to work
+				if (windowsSnapType != WSnapPointsType.None && ItemsView.IsSwipeEnabled)
+				{
+					_scrollViewer.HorizontalScrollMode = WScrollMode.Auto;
+				}
+			}
 
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Vertical)
-				_scrollViewer.VerticalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+			{
+				_scrollViewer.VerticalSnapPointsType = windowsSnapType;
+				// Ensure zoom mode is disabled for proper snap point behavior
+				_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+				// Ensure scroll mode is enabled for snap points to work
+				if (windowsSnapType != WSnapPointsType.None && ItemsView.IsSwipeEnabled)
+				{
+					_scrollViewer.VerticalScrollMode = WScrollMode.Auto;
+				}
+			}
 		}
 
 		void UpdateSnapPointsAlignment()
@@ -641,6 +669,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				item.ItemWidth = itemWidth;
 			}
 			ListViewBase.InvalidateMeasure();
+
+			// Refresh snap points after item size changes
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 	}
 }
