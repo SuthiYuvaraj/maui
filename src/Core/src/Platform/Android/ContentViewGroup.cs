@@ -109,6 +109,19 @@ namespace Microsoft.Maui.Platform
 			var destination = _context.ToCrossPlatformRectInReferenceFrame(left, top, right, bottom);
 
 			CrossPlatformArrange(destination);
+
+			// Ensure the ContentView's Frame is updated with the final layout bounds
+			// This is especially important during scrolling scenarios where the Frame
+			// might be reset or updated after the measure pass
+			if (CrossPlatformLayout is IView contentView)
+			{
+				var currentFrame = contentView.Frame;
+				var newFrame = destination;
+				if (currentFrame != newFrame)
+				{
+					contentView.Frame = newFrame;
+				}
+			}
 		}
 
 		internal IBorderStroke? Clip

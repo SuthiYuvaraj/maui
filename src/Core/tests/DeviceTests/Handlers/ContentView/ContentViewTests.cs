@@ -78,6 +78,55 @@ namespace Microsoft.Maui.DeviceTests.Handlers.ContentView
 			Assert.Equal(200, result.ContentViewWidth, 0);
 			Assert.Equal(200, result.ChildRecordedWidth, 0);
 		}
+
+		[Fact]
+		public async Task ContentViewWidthAvailableToChildrenDuringScrolling()
+		{
+			var contentView = new ContentViewStub();
+			var childView = new TestChildView();
+
+			contentView.Content = childView;
+			contentView.WidthRequest = 200;
+			contentView.HeightRequest = 100;
+
+			var contentViewHandler = await CreateHandlerAsync(contentView);
+
+			// Simulate multiple layout passes that occur during scrolling in CollectionView
+			var result = await InvokeOnMainThreadAsync(() =>
+			{
+				// Initial layout
+				contentView.Measure(200, 100);
+				contentView.Arrange(new Graphics.Rect(0, 0, 200, 100));
+				
+				// Simulate scrolling - multiple measure/arrange cycles with different positions
+				// This simulates what happens when CollectionView recycles and repositions items during scrolling
+				for (int i = 0; i < 3; i++)
+				{
+					// Reset the child's recorded width to test each cycle
+					childView.RecordedParentWidth = -1;
+					
+					// Simulate different positions during scrolling
+					var yOffset = i * 10;
+					contentView.Measure(200, 100);
+					contentView.Arrange(new Graphics.Rect(0, yOffset, 200, 100 + yOffset));
+					
+					// Child should have access to parent width even during position changes
+					if (childView.RecordedParentWidth <= 0)
+					{
+						return new { Success = false, ContentViewWidth = contentView.Width, ChildRecordedWidth = childView.RecordedParentWidth, FailedAtIteration = i };
+					}
+				}
+				
+				return new { Success = true, ContentViewWidth = contentView.Width, ChildRecordedWidth = childView.RecordedParentWidth, FailedAtIteration = -1 };
+			});
+
+			// The child should have access to the parent's width during all scrolling scenarios
+			Assert.True(result.Success, $"Child failed to access parent width during scrolling at iteration {result.FailedAtIteration}");
+			Assert.True(result.ContentViewWidth > 0, "ContentView Width should be greater than 0");
+			Assert.True(result.ChildRecordedWidth > 0, "Child should have recorded a positive parent width during scrolling");
+			Assert.Equal(200, result.ContentViewWidth, 0);
+			Assert.Equal(200, result.ChildRecordedWidth, 0);
+		}
 	}
 
 	public class TestChildView : IView
