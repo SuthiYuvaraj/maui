@@ -84,18 +84,6 @@ namespace Microsoft.Maui.Platform
 			platformWidth = Math.Max(MinimumWidth, platformWidth);
 			platformHeight = Math.Max(MinimumHeight, platformHeight);
 
-			// Update the ContentView's Frame so that Width and Height properties are available
-			// to child elements during layout calculations, especially in CollectionView scenarios
-			if (CrossPlatformLayout is IView contentView)
-			{
-				var currentFrame = contentView.Frame;
-				var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
-				if (currentFrame != newFrame)
-				{
-					contentView.Frame = newFrame;
-				}
-			}
-
 			SetMeasuredDimension((int)platformWidth, (int)platformHeight);
 		}
 
@@ -109,19 +97,6 @@ namespace Microsoft.Maui.Platform
 			var destination = _context.ToCrossPlatformRectInReferenceFrame(left, top, right, bottom);
 
 			CrossPlatformArrange(destination);
-
-			// Ensure the ContentView's Frame is updated with the final layout bounds
-			// This is especially important during scrolling scenarios where the Frame
-			// might be reset or updated after the measure pass
-			if (CrossPlatformLayout is IView contentView)
-			{
-				var currentFrame = contentView.Frame;
-				var newFrame = destination;
-				if (currentFrame != newFrame)
-				{
-					contentView.Frame = newFrame;
-				}
-			}
 		}
 
 		internal IBorderStroke? Clip

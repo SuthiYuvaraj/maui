@@ -90,6 +90,19 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				handler.LayoutVirtualView(l, t, r, b);
 			}
+
+			// Ensure the ContentView's Frame is updated with the final layout bounds
+			// This is especially important during scrolling scenarios in CollectionView
+			if (View is ContentView contentView)
+			{
+				var currentFrame = contentView.Frame;
+				var newFrame = new Graphics.Rect(this.FromPixels(l), this.FromPixels(t), 
+					this.FromPixels(r - l), this.FromPixels(b - t));
+				if (currentFrame != newFrame)
+				{
+					contentView.Frame = newFrame;
+				}
+			}
 		}
 
 		protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
@@ -203,6 +216,18 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 
 			ReportMeasure?.Invoke(new Size(pixelWidth, pixelHeight));
+
+			// Update the ContentView's Frame so that Width and Height properties are available
+			// to child elements during layout calculations in CollectionView scenarios
+			if (View is ContentView contentView)
+			{
+				var currentFrame = contentView.Frame;
+				var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
+				if (currentFrame != newFrame)
+				{
+					contentView.Frame = newFrame;
+				}
+			}
 
 			SetMeasuredDimension(pixelWidth, pixelHeight);
 		}
