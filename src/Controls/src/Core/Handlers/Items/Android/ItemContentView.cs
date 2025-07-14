@@ -203,6 +203,18 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				? double.PositiveInfinity
 				: this.FromPixels(pixelHeight);
 
+			// Update the ContentView's Frame BEFORE measuring child elements so that Width and Height 
+			// properties are available to child elements during their measure calculations in CollectionView scenarios
+			if (View is ContentView contentView)
+			{
+				var currentFrame = contentView.Frame;
+				var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
+				if (currentFrame != newFrame)
+				{
+					contentView.Frame = newFrame;
+				}
+			}
+
 			var measure = View.Measure(width, height);
 
 			if (pixelWidth == 0)
@@ -216,18 +228,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 
 			ReportMeasure?.Invoke(new Size(pixelWidth, pixelHeight));
-
-			// Update the ContentView's Frame so that Width and Height properties are available
-			// to child elements during layout calculations in CollectionView scenarios
-			if (View is ContentView contentView)
-			{
-				var currentFrame = contentView.Frame;
-				var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
-				if (currentFrame != newFrame)
-				{
-					contentView.Frame = newFrame;
-				}
-			}
 
 			SetMeasuredDimension(pixelWidth, pixelHeight);
 		}
