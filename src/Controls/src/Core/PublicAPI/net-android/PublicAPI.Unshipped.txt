@@ -3,7 +3,6 @@ override Microsoft.Maui.Controls.ContentPresenter.OnSizeAllocated(double width, 
 override Microsoft.Maui.Controls.ScrollView.OnSizeAllocated(double width, double height) -> void
 override Microsoft.Maui.Controls.TemplatedView.OnSizeAllocated(double width, double height) -> void
 virtual Microsoft.Maui.Controls.BindableProperty.CreateDefaultValueDelegate<TDeclarer, TPropertyType>.Invoke(TDeclarer bindable) -> TPropertyType
-~override Microsoft.Maui.Controls.Handlers.Items.GroupableItemsViewAdapter<TItemsView, TItemsViewSource>.ItemsViewPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs property) -> void
 ~virtual Microsoft.Maui.Controls.BindableProperty.BindingPropertyChangedDelegate.Invoke(Microsoft.Maui.Controls.BindableObject bindable, object oldValue, object newValue) -> void
 ~virtual Microsoft.Maui.Controls.BindableProperty.BindingPropertyChangedDelegate<TPropertyType>.Invoke(Microsoft.Maui.Controls.BindableObject bindable, TPropertyType oldValue, TPropertyType newValue) -> void
 ~virtual Microsoft.Maui.Controls.BindableProperty.BindingPropertyChangingDelegate.Invoke(Microsoft.Maui.Controls.BindableObject bindable, object oldValue, object newValue) -> void
@@ -16,3 +15,5 @@ virtual Microsoft.Maui.Controls.BindableProperty.CreateDefaultValueDelegate<TDec
 ~virtual Microsoft.Maui.Controls.CollectionSynchronizationCallback.Invoke(System.Collections.IEnumerable collection, object context, System.Action accessMethod, bool writeAccess) -> void
 ~virtual Microsoft.Maui.Controls.Internals.EvaluateJavaScriptDelegate.Invoke(string script) -> System.Threading.Tasks.Task<string>
 ~override Microsoft.Maui.Controls.Handlers.Items.GroupableItemsViewAdapter<TItemsView, TItemsViewSource>.ItemsViewPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs property) -> void
+~static Microsoft.Maui.Controls.Handlers.Items.StructuredItemsViewHandler<TItemsView>.MapFooter(Microsoft.Maui.Controls.Handlers.Items.StructuredItemsViewHandler<TItemsView> handler, Microsoft.Maui.Controls.StructuredItemsView itemsView) -> void
+~static Microsoft.Maui.Controls.Handlers.Items.StructuredItemsViewHandler<TItemsView>.MapHeader(Microsoft.Maui.Controls.Handlers.Items.StructuredItemsViewHandler<TItemsView> handler, Microsoft.Maui.Controls.StructuredItemsView itemsView) -> void
