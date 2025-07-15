@@ -90,6 +90,50 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				handler.LayoutVirtualView(l, t, r, b);
 			}
+
+		void ForceRemeasureHierarchy(IView view)
+		{
+			if (view is VisualElement visualElement)
+			{
+				// Force invalidate and batch the remeasure
+				visualElement.InvalidateMeasure();
+
+				// Use dispatcher to ensure measure happens after current layout cycle
+				visualElement.Dispatcher.Dispatch(() =>
+				{
+					visualElement.InvalidateMeasure();
+				});
+
+				// Handle ContentView with nested content
+				if (visualElement is ContentView contentView && contentView.Content != null)
+				{
+					ForceRemeasureHierarchy(contentView.Content);
+				}
+
+				// Handle Layout with children
+				if (visualElement is Layout layout)
+				{
+					foreach (var child in layout.Children)
+					{
+						if (child is IView childView)
+						{
+							ForceRemeasureHierarchy(childView);
+						}
+					}
+				}
+
+				// Handle Grid specifically (since your progress bar uses Grid)
+				if (visualElement is Grid grid)
+				{
+					foreach (var child in grid.Children)
+					{
+						if (child is IView childView)
+						{
+							ForceRemeasureHierarchy(childView);
+						}
+					}
+				}
+			}
 		}
 
 		protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
@@ -151,8 +195,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 					{
 						_pixelSize = null;
 					}
-
-					_pixelSize = null;
 				}
 			}
 
@@ -168,17 +210,35 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			// If we're using ItemSizingStrategy.MeasureFirstItem and now we have a set size, use that
 			// Even though we already know the size we still need to pass the measure through to the children.
+
+			// Replace the _pixelSize handling section:
+
 			if (_pixelSize is not null)
 			{
-				// If the platform childs measure has been invalidated, it's going to still want to
-				// participate in the measure lifecycle in order to update its internal
-				// book keeping.
+				var pixelWidthValue = _pixelSize.Value.Width;
+				var pixelHeightValue = _pixelSize.Value.Height;
+
+				// CRITICAL: Set the frame BEFORE any measurement to ensure children have access to parent size
+				var newCurrentFrame = View.Frame;
+				var newFrameCurrent = new Graphics.Rect(newCurrentFrame.X, newCurrentFrame.Y, pixelWidthValue, pixelHeightValue);
+				if (newCurrentFrame != newFrameCurrent)
+				{
+					View.Frame = newFrameCurrent;
+				}
+
+				// Perform a full measure without constraints to allow children to recalculate
+				var measureSpec = View.Measure(pixelWidthValue, pixelHeightValue);
+
+				// Force remeasurement of the entire hierarchy
+				//ForceRemeasureHierarchy(View);
+
+				// Also call the platform handler measure to ensure platform-specific updates
 				_ = (View.Handler as IPlatformViewHandler)?.MeasureVirtualView(
-						MeasureSpec.MakeMeasureSpec((int)_pixelSize.Value.Width, MeasureSpecMode.Exactly),
-						MeasureSpec.MakeMeasureSpec((int)_pixelSize.Value.Height, MeasureSpecMode.Exactly)
+						MeasureSpec.MakeMeasureSpec((int)pixelWidthValue, MeasureSpecMode.Exactly),
+						MeasureSpec.MakeMeasureSpec((int)pixelHeightValue, MeasureSpecMode.Exactly)
 					);
 
-				SetMeasuredDimension((int)_pixelSize.Value.Width, (int)_pixelSize.Value.Height);
+				SetMeasuredDimension((int)pixelWidthValue, (int)pixelHeightValue);
 				return;
 			}
 
