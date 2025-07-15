@@ -15,6 +15,20 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 		}
 
+		protected override void ItemsViewPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs property)
+		{
+			base.ItemsViewPropertyChanged(sender, property);
+
+			if (property.Is(Microsoft.Maui.Controls.GroupableItemsView.GroupHeaderTemplateProperty))
+			{
+				NotifyDataSetChanged();
+			}
+			else if (property.Is(Microsoft.Maui.Controls.GroupableItemsView.GroupFooterTemplateProperty))
+			{
+				NotifyDataSetChanged();
+			}
+		}
+
 		protected override TItemsViewSource CreateItemsSource()
 		{
 			return (TItemsViewSource)ItemsSourceFactory.Create(ItemsView, this);

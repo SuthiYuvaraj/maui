@@ -9,6 +9,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			throw new NotImplementedException();
 		}
+
 		public static void MapHeaderTemplate(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 		{
 		}
