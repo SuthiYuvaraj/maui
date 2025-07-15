@@ -545,9 +545,15 @@ namespace Microsoft.Maui.Platform
 			return frameworkElement.IsAttachedToWindow;
 		}
 
+		internal static bool HasBeenMeasured(this View view)
+		{
+			return view.MeasuredWidth > 0 && view.MeasuredHeight > 0;
+		}
+
 		internal static IDisposable OnLoaded(this View view, Action action)
 		{
-			if (view.IsLoaded())
+			// Check if view is loaded AND has been measured (similar to iOS behavior)
+			if (view.IsLoaded() && view.HasBeenMeasured())
 			{
 				action();
 				return new ActionDisposable(() => { });
@@ -564,23 +570,41 @@ namespace Microsoft.Maui.Platform
 
 			routedEventHandler = (_, __) =>
 			{
-				if (!view.IsLoaded() && Looper.MyLooper() is Looper q)
+				// Now the view is attached to window, we can invoke the action
+				// But first check if we should wait for measurement (similar to iOS)
+				if (view.IsLoaded())
 				{
-					new Handler(q).Post(() =>
+					// If view has been measured, invoke immediately  
+					if (view.HasBeenMeasured())
 					{
-						if (disposable is not null)
-							action.Invoke();
-
 						disposable?.Dispose();
 						disposable = null;
-					});
-
-					return;
+						action();
+					}
+					else
+					{
+						// View is loaded but not measured yet, wait a bit
+						if (Looper.MyLooper() is Looper q)
+						{
+							new Handler(q).Post(() =>
+							{
+								if (disposable is not null)
+								{
+									action.Invoke();
+									disposable?.Dispose();
+									disposable = null;
+								}
+							});
+						}
+						else
+						{
+							// Fallback if no looper
+							disposable?.Dispose();
+							disposable = null;
+							action();
+						}
+					}
 				}
-
-				disposable?.Dispose();
-				disposable = null;
-				action();
 			};
 
 			view.ViewAttachedToWindow += routedEventHandler;
