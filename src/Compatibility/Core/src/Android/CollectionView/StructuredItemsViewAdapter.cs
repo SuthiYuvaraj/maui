@@ -35,6 +35,16 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.Android
 				UpdateHasFooter();
 				NotifyDataSetChanged();
 			}
+			else if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.HeaderTemplateProperty))
+			{
+				UpdateHasHeader();
+				NotifyDataSetChanged();
+			}
+			else if (property.Is(Microsoft.Maui.Controls.StructuredItemsView.FooterTemplateProperty))
+			{
+				UpdateHasFooter();
+				NotifyDataSetChanged();
+			}
 		}
 
 		public override int GetItemViewType(int position)
