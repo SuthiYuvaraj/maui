@@ -545,7 +545,7 @@ namespace Microsoft.Maui.Platform
 			return frameworkElement.IsAttachedToWindow;
 		}
 
-		internal static bool HasBeenMeasured(this View view)
+		private static bool HasBeenMeasured(this View view)
 		{
 			return view.MeasuredWidth > 0 && view.MeasuredHeight > 0;
 		}
