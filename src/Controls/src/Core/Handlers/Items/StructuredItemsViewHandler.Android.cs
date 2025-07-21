@@ -14,12 +14,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		public static void MapHeaderTemplate(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 		{
-			handler.UpdateHeaderFooterOptimized(true);
+			handler.UpdateHeaderFooter(true);
 		}
 
 		public static void MapFooterTemplate(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 		{
-			handler.UpdateHeaderFooterOptimized(false);
+			handler.UpdateHeaderFooter(false);
 		}
 
 		public static void MapItemsLayout(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
@@ -28,28 +28,27 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		public static void MapItemSizingStrategy(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 			=> (handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
 
-		void UpdateHeaderFooterOptimized(bool isHeader)
+		void UpdateHeaderFooter(bool isHeader)
 		{
 			var recyclerView = PlatformView as IMauiRecyclerView<TItemsView>;
 			var adapter = (recyclerView as RecyclerView)?.GetAdapter();
 
-			if (recyclerView == null || adapter == null)
+			if (recyclerView is null || adapter is null)
+			{
 				return;
+			}
 
 			bool hasHeaderOrFooter = isHeader
-				? (VirtualView.Header ?? VirtualView.HeaderTemplate) != null
-				: (VirtualView.Footer ?? VirtualView.FooterTemplate) != null;
+			? (VirtualView.Header ?? VirtualView.HeaderTemplate) != null
+			: (VirtualView.Footer ?? VirtualView.FooterTemplate) != null;
 
 			bool exists = isHeader
-				? DoesHeaderExist(adapter)
-				: DoesFooterExist(adapter);
+			? DoesHeaderExist(adapter)
+			: DoesFooterExist(adapter);
 
-			if (hasHeaderOrFooter && exists)
+			if (hasHeaderOrFooter && exists && IsDynamicChange())
 			{
-				if (IsDynamicChange())
-				{
-					recyclerView.UpdateAdapter();
-				}
+				recyclerView.UpdateAdapter();
 			}
 			else if (hasHeaderOrFooter != exists)
 			{
@@ -57,15 +56,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 		}
 
-		private bool DoesHeaderExist(RecyclerView.Adapter adapter)
+		bool DoesHeaderExist(RecyclerView.Adapter adapter)
 		{
-			if (adapter.ItemCount == 0)
+			if (adapter.ItemCount >= 0)
+			{
 				return false;
+			}
 
 			try
 			{
-				const int HeaderViewType = 43;
-				return adapter.GetItemViewType(0) == HeaderViewType;
+				return adapter.GetItemViewType(0) == ItemViewType.Header;
 			}
 			catch
 			{
@@ -73,16 +73,18 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 		}
 
-		private bool DoesFooterExist(RecyclerView.Adapter adapter)
+		bool DoesFooterExist(RecyclerView.Adapter adapter)
 		{
 			var footerPosition = adapter.ItemCount - 1;
 			if (footerPosition < 0)
+			{
 				return false;
+			}
 
 			try
 			{
-				const int FooterViewType = 44;
-				return adapter.GetItemViewType(footerPosition) == FooterViewType;
+
+				return adapter.GetItemViewType(footerPosition) == ItemViewType.Footer;
 			}
 			catch
 			{
@@ -90,10 +92,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 		}
 
-		private bool IsDynamicChange()
+		bool IsDynamicChange()
 		{
-			// Simple heuristic: if the RecyclerView has been laid out, it's likely a runtime change
-			// During initial loading, the view typically hasn't been measured/laid out yet
 			return (PlatformView as RecyclerView)?.IsLaidOut == true;
 		}
 	}
