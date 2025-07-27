@@ -318,16 +318,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return;
 			}
 
-			// For Windows, ItemSizingStrategy.MeasureFirstItem needs special handling
-			// We need to ensure all items have the same size based on the first item
 			if (ItemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
 			{
-				// Force a uniform item container style that will make all items the same size
 				SetUniformItemSizing();
 			}
 			else
 			{
-				// Allow items to size individually
 				ClearUniformItemSizing();
 			}
 		}
@@ -339,7 +335,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return;
 			}
 
-			// Apply uniform sizing based on the item layout type
 			switch (ItemsView.ItemsLayout)
 			{
 				case GridItemsLayout gridLayout:
@@ -367,17 +362,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		void ClearUniformItemSizing()
 		{
-			// Restore the default item container styles
 			UpdateItemsLayoutItemSpacing();
 		}
 
 		(double width, double height) MeasureFirstItem()
 		{
-			// Default fallback sizes
 			double defaultWidth = 0;
 			double defaultHeight = 0;
 
-			// Get the first item from the items source
 			var itemsSource = ItemsView.ItemsSource;
 			if (itemsSource == null)
 			{
@@ -390,31 +382,25 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				if (enumerator.MoveNext())
 				{
 					var firstItem = enumerator.Current;
-
 					if (ItemsView.ItemTemplate is not null)
-					{                       // Create the actual view from the template
+					{ 
 						var templateView = ItemsView.ItemTemplate.CreateContent() as View;
 						if (templateView != null)
 						{
-							// Set the binding context
 							templateView.BindingContext = firstItem;
 
-							// Ensure the view has a handler by converting to platform
 							var mauiContext = MauiContext ?? ItemsView.FindMauiContext();
 							if (mauiContext != null)
 							{
 								var platformView = templateView.ToPlatform(mauiContext);
 
-								// Measure the view using the MAUI measurement system
 								var measuredSize = templateView.Measure(double.PositiveInfinity, double.PositiveInfinity);
 
 								var measuredWidth = measuredSize.Width;
 								var measuredHeight = measuredSize.Height;
 
-								// Clean up the temporary view
 								templateView.Handler?.DisconnectHandler();
 
-								// Use measured size if valid, otherwise use defaults
 								return (
 									measuredWidth > 0 ? measuredWidth : defaultWidth,
 									measuredHeight > 0 ? measuredHeight : defaultHeight
@@ -424,43 +410,28 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 					}
 					else
 					{
-						// No item template - measure based on string representation
 						var itemText = firstItem?.ToString() ?? string.Empty;
 
-						// Create a temporary TextBlock to measure the item's string representation
 						var textBlock = new TextBlock { Text = itemText };
 
-						// Measure the TextBlock
 						textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
 
 						var measuredWidth = textBlock.DesiredSize.Width;
 						var measuredHeight = textBlock.DesiredSize.Height;
 
-						// Return measured size if valid, otherwise use defaults
 						return (
 							measuredWidth > 0 ? measuredWidth : defaultWidth,
 							measuredHeight > 0 ? measuredHeight : defaultHeight
 						);
-					
-				}
+					}
+
+
 				}
 			}
 
-			return (defaultWidth, defaultHeight);
+				return (defaultWidth, defaultHeight);
 		}
-
-		FrameworkElement CreateTempItemContainer()
-		{
-			switch (ItemsView.ItemsLayout)
-			{
-				case GridItemsLayout:
-					return new GridViewItem();
-				case LinearItemsLayout:
-					return new ListViewItem();
-				default:
-					return null;
-			}
-		}
+		
 
 		WStyle GetUniformGridItemContainerStyle(GridItemsLayout layout)
 		{
@@ -470,16 +441,21 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			var style = new WStyle(typeof(GridViewItem));
 
-			// Measure the first item to get uniform size
 			var (measuredWidth, measuredHeight) = MeasureFirstItem();
 
-			style.Setters.Add(new WSetter(FrameworkElement.WidthProperty, measuredWidth));
-			style.Setters.Add(new WSetter(FrameworkElement.HeightProperty, measuredHeight));
+			if (layout.Orientation == ItemsLayoutOrientation.Vertical)
+			{
+				style.Setters.Add(new WSetter(FrameworkElement.HeightProperty, measuredHeight));
+				style.Setters.Add(new WSetter(FrameworkElement.MinHeightProperty, measuredHeight));
+			}
+			else if (layout.Orientation == ItemsLayoutOrientation.Horizontal)
+			{
+				style.Setters.Add(new WSetter(FrameworkElement.WidthProperty, measuredWidth));
+				style.Setters.Add(new WSetter(FrameworkElement.MinWidthProperty, measuredWidth));
+			}
+
 			style.Setters.Add(new WSetter(FrameworkElement.MarginProperty, margin));
 			style.Setters.Add(new WSetter(Control.PaddingProperty, WinUIHelpers.CreateThickness(0)));
-			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
-			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
-
 			return style;
 		}
 
@@ -490,16 +466,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			var style = new WStyle(typeof(ListViewItem));
 
-			// Measure the first item to get uniform height
 			var (_, measuredHeight) = MeasureFirstItem();
 
 			style.Setters.Add(new WSetter(FrameworkElement.HeightProperty, measuredHeight));
 			style.Setters.Add(new WSetter(FrameworkElement.MinHeightProperty, measuredHeight));
 			style.Setters.Add(new WSetter(FrameworkElement.MarginProperty, margin));
 			style.Setters.Add(new WSetter(Control.PaddingProperty, WinUIHelpers.CreateThickness(0)));
-			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
-			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
-
 			return style;
 		}
 
@@ -510,14 +482,11 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			var style = new WStyle(typeof(ListViewItem));
 
-			// Measure the first item to get uniform width
 			var (measuredWidth, _) = MeasureFirstItem();
 
 			style.Setters.Add(new WSetter(FrameworkElement.WidthProperty, measuredWidth));
 			style.Setters.Add(new WSetter(FrameworkElement.MinWidthProperty, measuredWidth));
 			style.Setters.Add(new WSetter(Control.PaddingProperty, padding));
-			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
-			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
 
 			return style;
 		}
