@@ -374,56 +374,76 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		(double width, double height) MeasureFirstItem()
 		{
 			// Default fallback sizes
-			const double defaultWidth = 120.0;
-			const double defaultHeight = 120.0;
+			double defaultWidth = 0;
+			double defaultHeight = 0;
 
-			if (ListViewBase == null || ItemsView?.ItemsSource == null)
+			// Get the first item from the items source
+			var itemsSource = ItemsView.ItemsSource;
+			if (itemsSource == null)
 			{
 				return (defaultWidth, defaultHeight);
 			}
 
-			try
+			if (itemsSource is System.Collections.IEnumerable enumerable)
 			{
-				// Get the first item from the items source
-				var itemsSource = ItemsView.ItemsSource;
-				if (itemsSource is System.Collections.IEnumerable enumerable)
+				var enumerator = enumerable.GetEnumerator();
+				if (enumerator.MoveNext())
 				{
-					var enumerator = enumerable.GetEnumerator();
-					if (enumerator.MoveNext())
-					{
-						var firstItem = enumerator.Current;
+					var firstItem = enumerator.Current;
 
-						// Create a temporary container to measure the item
-						var tempContainer = CreateTempItemContainer();
-						if (tempContainer != null && ItemsView.ItemTemplate != null)
+					if (ItemsView.ItemTemplate is not null)
+					{                       // Create the actual view from the template
+						var templateView = ItemsView.ItemTemplate.CreateContent() as View;
+						if (templateView != null)
 						{
-							// Create the item content using the template
-							var itemTemplateContext = new ItemTemplateContext(ItemsView.ItemTemplate, firstItem, Element, mauiContext: MauiContext);
-							var content = new ContentControl
+							// Set the binding context
+							templateView.BindingContext = firstItem;
+
+							// Ensure the view has a handler by converting to platform
+							var mauiContext = MauiContext ?? ItemsView.FindMauiContext();
+							if (mauiContext != null)
 							{
+								var platformView = templateView.ToPlatform(mauiContext);
 
-								Content = itemTemplateContext
-							};
-							
+								// Measure the view using the MAUI measurement system
+								var measuredSize = templateView.Measure(double.PositiveInfinity, double.PositiveInfinity);
 
-							// Measure the container
-							content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+								var measuredWidth = measuredSize.Width;
+								var measuredHeight = measuredSize.Height;
 
-							var measuredWidth = content.DesiredSize.Width;
-							var measuredHeight = content.DesiredSize.Height;
+								// Clean up the temporary view
+								templateView.Handler?.DisconnectHandler();
 
-							// Use measured size if valid, otherwise use defaults
-							return (
-								measuredWidth > 0 ? measuredWidth : defaultWidth,
-								measuredHeight > 0 ? measuredHeight : defaultHeight
-							);
+								// Use measured size if valid, otherwise use defaults
+								return (
+									measuredWidth > 0 ? measuredWidth : defaultWidth,
+									measuredHeight > 0 ? measuredHeight : defaultHeight
+								);
+							}
 						}
 					}
+					else
+					{
+						// No item template - measure based on string representation
+						var itemText = firstItem?.ToString() ?? string.Empty;
+
+						// Create a temporary TextBlock to measure the item's string representation
+						var textBlock = new TextBlock { Text = itemText };
+
+						// Measure the TextBlock
+						textBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+						var measuredWidth = textBlock.DesiredSize.Width;
+						var measuredHeight = textBlock.DesiredSize.Height;
+
+						// Return measured size if valid, otherwise use defaults
+						return (
+							measuredWidth > 0 ? measuredWidth : defaultWidth,
+							measuredHeight > 0 ? measuredHeight : defaultHeight
+						);
+					
 				}
-			}
-			catch
-			{
-				// If measurement fails for any reason, fall back to defaults
+				}
 			}
 
 			return (defaultWidth, defaultHeight);
