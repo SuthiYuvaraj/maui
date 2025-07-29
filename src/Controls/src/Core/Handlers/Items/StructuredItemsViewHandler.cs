@@ -17,6 +17,32 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		}
 
+		public static void MapHeader(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
+		{
+#if __ANDROID__
+			(handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
+#elif __IOS__
+			(handler.Controller as StructuredItemsViewController<TItemsView>)?.UpdateHeaderView();
+#elif WINDOWS
+			handler.UpdateHeader();
+#elif TIZEN
+			(handler.PlatformView as MauiCollectionView<TItemsView>)?.UpdateAdaptor();
+#endif
+		}
+
+		public static void MapFooter(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
+		{
+#if __ANDROID__
+			(handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
+#elif __IOS__
+			(handler.Controller as StructuredItemsViewController<TItemsView>)?.UpdateFooterView();
+#elif WINDOWS
+			handler.UpdateFooter();
+#elif TIZEN
+			(handler.PlatformView as MauiCollectionView<TItemsView>)?.UpdateAdaptor();
+#endif
+		}
+
 		public static PropertyMapper<TItemsView, StructuredItemsViewHandler<TItemsView>> StructuredItemsViewMapper = new(ItemsViewMapper)
 		{
 #if TIZEN
@@ -25,10 +51,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			[StructuredItemsView.HeaderTemplateProperty.PropertyName] = MapHeader,
 			[StructuredItemsView.FooterTemplateProperty.PropertyName] = MapFooter,
 #endif
+			[StructuredItemsView.HeaderProperty.PropertyName] = MapHeader,
+			[StructuredItemsView.FooterProperty.PropertyName] = MapFooter,
 			[StructuredItemsView.HeaderTemplateProperty.PropertyName] = MapHeaderTemplate,
 			[StructuredItemsView.FooterTemplateProperty.PropertyName] = MapFooterTemplate,
-			[StructuredItemsView.HeaderProperty.PropertyName] = MapHeaderTemplate,
-			[StructuredItemsView.FooterProperty.PropertyName] = MapFooterTemplate,
 			[StructuredItemsView.ItemsLayoutProperty.PropertyName] = MapItemsLayout,
 			[StructuredItemsView.ItemSizingStrategyProperty.PropertyName] = MapItemSizingStrategy
 		};
