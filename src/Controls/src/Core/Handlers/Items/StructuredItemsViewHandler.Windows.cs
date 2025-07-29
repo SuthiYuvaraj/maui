@@ -383,7 +383,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				{
 					var firstItem = enumerator.Current;
 					if (ItemsView.ItemTemplate is not null)
-					{ 
+					{
 						var templateView = ItemsView.ItemTemplate.CreateContent() as View;
 						if (templateView != null)
 						{
@@ -429,9 +429,9 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				}
 			}
 
-				return (defaultWidth, defaultHeight);
+			return (defaultWidth, defaultHeight);
 		}
-		
+
 
 		WStyle GetUniformGridItemContainerStyle(GridItemsLayout layout)
 		{
@@ -489,6 +489,11 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			style.Setters.Add(new WSetter(Control.PaddingProperty, padding));
 
 			return style;
+		}
+
+		override void OnFirstItemAddedToEmptyCollection()
+		{
+			UpdateItemSizingStrategy();
 		}
 	}
 }

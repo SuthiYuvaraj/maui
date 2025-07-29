@@ -151,6 +151,19 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				// Adjusts the scroll offset to keep the last item in the list displayed when new items are added.
 				ListViewBase.ScrollIntoView(lastItem, ScrollIntoViewAlignment.Leading);
 			}
+
+			if (itemsCount == 1 && @event.CollectionChange == global::Windows.Foundation.Collections.CollectionChange.ItemInserted && @event.Index == 0)
+			{
+				if (VirtualView is StructuredItemsView structuredItemsView && structuredItemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+				{
+					OnFirstItemAddedToEmptyCollection();
+				}
+			}
+		}
+
+		protected virtual void OnFirstItemAddedToEmptyCollection()
+		{
+			// Base implementation does nothing - derived classes can override to handle first item measurement
 		}
 
 		protected abstract ListViewBase SelectListViewBase();
