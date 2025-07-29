@@ -330,7 +330,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		void SetUniformItemSizing()
 		{
-			if (ListViewBase == null || ItemsView?.ItemsLayout == null)
+			if (ItemsView?.ItemsLayout == null)
 			{
 				return;
 			}
