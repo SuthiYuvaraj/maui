@@ -174,7 +174,7 @@ public class Issue29130DynamicViewModel : ViewModelBase
     private int _itemCounter = 0;
     private string _sizingStrategy = "MeasureFirstItem";
 
-    public ObservableCollection<DynamicItemModel> Items { get; } = new();
+    public ObservableCollection<Issue29130DynamicItemModel> Items { get; } = new();
 
     public string StatusText => $"Items: {Items.Count}, Strategy: {_sizingStrategy}";
 
@@ -184,7 +184,7 @@ public class Issue29130DynamicViewModel : ViewModelBase
         var descIndex = _itemCounter % _sampleDescriptions.Length;
         var fontIndex = _itemCounter % _fontSizes.Length;
 
-        var item = new DynamicItemModel(
+        var item = new Issue29130DynamicItemModel(
             title: _sampleTitles[titleIndex],
             description: _sampleDescriptions[descIndex],
             fontSize: _fontSizes[fontIndex],
@@ -211,7 +211,7 @@ public class Issue29130DynamicViewModel : ViewModelBase
     }
 }
 
-public class DynamicItemModel
+public class Issue29130DynamicItemModel
 {
     public string Title { get; }
     public string Description { get; }
@@ -219,7 +219,7 @@ public class DynamicItemModel
     public string TitleAutomationId { get; }
     public string DescriptionAutomationId { get; }
 
-    public DynamicItemModel(string title, string description, double fontSize, string titleAutomationId, string descriptionAutomationId)
+    public Issue29130DynamicItemModel(string title, string description, double fontSize, string titleAutomationId, string descriptionAutomationId)
     {
         Title = title;
         Description = description;
