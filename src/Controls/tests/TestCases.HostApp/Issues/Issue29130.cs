@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Maui.Controls.Sample.Issues;
 
-[Issue(IssueTracker.Github, 29130, "CollectionView2 ItemSizingStrategy should work for MeasureFirstItem", PlatformAffected.iOS)]
+[Issue(IssueTracker.Github, 29130, "CollectionView ItemSizingStrategy should work for MeasureFirstItem", PlatformAffected.UWP)]
 public class Issue29130 : ContentPage
 {
 	CollectionView2 collectionView;

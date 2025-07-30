@@ -330,7 +330,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		void SetUniformItemSizing()
 		{
-			if (ItemsView?.ItemsLayout == null)
+			if (ItemsView?.ItemsLayout == null || ItemsView.ItemsSource == null || ItemsView.ItemsSource.Count == 0)
 			{
 				return;
 			}
@@ -371,11 +371,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			double defaultHeight = 0;
 
 			var itemsSource = ItemsView.ItemsSource;
-			if (itemsSource == null)
-			{
-				return (defaultWidth, defaultHeight);
-			}
-
 			if (itemsSource is System.Collections.IEnumerable enumerable)
 			{
 				var enumerator = enumerable.GetEnumerator();

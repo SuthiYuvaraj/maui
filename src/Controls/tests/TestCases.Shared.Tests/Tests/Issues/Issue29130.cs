@@ -7,7 +7,7 @@ namespace Microsoft.Maui.TestCases.Tests.Issues
 {
 	internal class Issue29130 : _IssuesUITest
 	{
-		public override string Issue => "CollectionView2 ItemSizingStrategy should work for MeasureFirstItem";
+		public override string Issue => "CollectionView ItemSizingStrategy should work for MeasureFirstItem";
 		public Issue29130(TestDevice device) : base(device)
 		{
 		}

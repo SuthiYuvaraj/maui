@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 
 namespace Maui.Controls.Sample.Issues;
 
-[Issue(IssueTracker.Github, 29130, "CollectionView ItemSizingStrategy.MeasureFirstItem should work when items are added dynamically to empty collection", PlatformAffected.All)]
+[Issue(IssueTracker.Github, 0, "CollectionView ItemSizingStrategy.MeasureFirstItem should work when items are added dynamically to empty collection", PlatformAffected.UWP)]
 public class Issue29130Dynamic : ContentPage
 {
     CollectionView collectionView;
