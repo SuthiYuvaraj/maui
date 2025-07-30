@@ -491,7 +491,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			return style;
 		}
 
-		override void OnFirstItemAddedToEmptyCollection()
+		protected override void OnFirstItemAddedToEmptyCollection()
 		{
 			UpdateItemSizingStrategy();
 		}
