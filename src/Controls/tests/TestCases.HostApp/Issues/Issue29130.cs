@@ -5,7 +5,7 @@ namespace Maui.Controls.Sample.Issues;
 [Issue(IssueTracker.Github, 29130, "CollectionView ItemSizingStrategy should work for MeasureFirstItem", PlatformAffected.UWP)]
 public class Issue29130 : ContentPage
 {
-	CollectionView2 collectionView;
+	CollectionView collectionView;
 	public Issue29130()
 	{
 		var viewModel = new Issue29130ViewModel();
@@ -43,7 +43,7 @@ public class Issue29130 : ContentPage
 		grid.Children.Add(measureFirstItemButton);
 		grid.Children.Add(measureAllItemsButton);
 
-		collectionView = new CollectionView2
+		collectionView = new CollectionView
 		{
 			Margin = new Thickness(0, 20, 0, 0),
 			AutomationId = "29130CollectionView",

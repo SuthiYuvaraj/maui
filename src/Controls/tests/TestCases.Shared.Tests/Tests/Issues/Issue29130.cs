@@ -14,10 +14,9 @@ namespace Microsoft.Maui.TestCases.Tests.Issues
 
 		[Test]
 		[Category(UITestCategories.CollectionView)]
-		public void ItemSizeShouldRespondForItemSizingStatergy()
+		public void ItemSizeShouldRespondForItemSizingStrategy()
 		{
-			// Is a iOS issue; see https://github.com/dotnet/maui/issues/29130
-			App.WaitForElement("29130Grid");
+			// Is a Windows issue; see https://github.com/dotnet/maui/issues/29130
 			var cv = App.WaitForElement("29130CollectionView");
 			var cvHeight = cv.GetRect();
 			App.WaitForElement("29130MeasureAllItemsButton");
