@@ -1494,11 +1494,39 @@ namespace Microsoft.Maui.Controls
 		{
 		}
 
+		double _originalHeightRequest = -1;
+		double _originalWidthRequest = -1;
+
 		internal virtual void OnIsVisibleChanged(bool oldValue, bool newValue)
 		{
 			if (this is IView fe)
 			{
 				fe.Handler?.UpdateValue(nameof(IView.Visibility));
+			}
+
+			if (!newValue && oldValue)
+			{
+				// Store original dimensions before hiding
+				_originalHeightRequest = HeightRequest;
+				_originalWidthRequest = WidthRequest;
+
+				// Collapse the element by setting to -1 (collapsed)
+				SetValue(HeightRequestProperty, -1);
+				SetValue(WidthRequestProperty, -1);
+
+				// Also set MaximumHeightRequest to 0 to force zero allocation
+				SetValue(MaximumHeightRequestProperty, 0);
+				SetValue(MaximumWidthRequestProperty, 0);
+			}
+			else if (newValue && !oldValue)
+			{
+				// Restore original dimensions when showing
+				SetValue(HeightRequestProperty, _originalHeightRequest);
+				SetValue(WidthRequestProperty, _originalWidthRequest);
+
+				// Reset maximum constraints
+				SetValue(MaximumHeightRequestProperty, double.PositiveInfinity);
+				SetValue(MaximumWidthRequestProperty, double.PositiveInfinity);
 			}
 
 			InvalidateMeasureInternal(InvalidationTrigger.Undefined);
