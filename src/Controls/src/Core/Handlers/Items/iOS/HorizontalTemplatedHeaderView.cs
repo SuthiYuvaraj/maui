@@ -23,19 +23,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return CGSize.Empty;
 			}
 
-			// Check if the content is invisible and should collapse to zero
-			if (PlatformHandler?.VirtualView is VisualElement visualElement && !visualElement.IsVisible)
-			{
-				return CGSize.Empty;
-			}
-
-			// Also check if the content has maximum constraints set to zero (from our VisualElement enhancement)
-			if (PlatformHandler?.VirtualView is VisualElement ve && ve.MaximumHeightRequest == 0 && ve.MaximumWidthRequest == 0)
-			{
-				return CGSize.Empty;
-			}
-
 			var measure = PlatformHandler.VirtualView.Measure(double.PositiveInfinity, ConstrainedDimension);
+
 
 			var width = PlatformHandler.VirtualView.Width > 0
 				? PlatformHandler.VirtualView.Width : measure.Width;
