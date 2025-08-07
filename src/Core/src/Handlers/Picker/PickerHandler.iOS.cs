@@ -72,19 +72,7 @@ namespace Microsoft.Maui.Handlers
 				popoverPresentation.SourceView = uITextField;
 				popoverPresentation.SourceRect = uITextField.Bounds;
 			}
-
-			EventHandler? editingDidEndHandler = null;
-
-			editingDidEndHandler = async (s, e) =>
-			{
-				await pickerController.DismissViewControllerAsync(true);
-				if (VirtualView is IPicker virtualView)
-					virtualView.IsFocused = false;
-				uITextField.EditingDidEnd -= editingDidEndHandler;
-			};
-
-			uITextField.EditingDidEnd += editingDidEndHandler;
-
+		
 			var platformWindow = MauiContext?.GetPlatformWindow();
 			platformWindow?.BeginInvokeOnMainThread(() =>
 			{
