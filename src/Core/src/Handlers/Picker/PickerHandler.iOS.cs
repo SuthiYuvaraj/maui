@@ -38,6 +38,9 @@ namespace Microsoft.Maui.Handlers
 		protected override MauiPicker CreatePlatformView() =>
 			new MauiPicker(null) { BorderStyle = UITextBorderStyle.RoundedRect };
 
+
+
+
 		void DisplayAlert(MauiPicker uITextField)
 		{
 			var paddingTitle = 0;
@@ -72,7 +75,21 @@ namespace Microsoft.Maui.Handlers
 				popoverPresentation.SourceView = uITextField;
 				popoverPresentation.SourceRect = uITextField.Bounds;
 			}
-		
+			if (!UIAccessibility.IsVoiceOverRunning)
+			{
+				EventHandler? editingDidEndHandler = null;
+
+				editingDidEndHandler = async (s, e) =>
+				{
+					await pickerController.DismissViewControllerAsync(true);
+					if (VirtualView is IPicker virtualView)
+						virtualView.IsFocused = false;
+					uITextField.EditingDidEnd -= editingDidEndHandler;
+				};
+
+				uITextField.EditingDidEnd += editingDidEndHandler;
+			}
+
 			var platformWindow = MauiContext?.GetPlatformWindow();
 			platformWindow?.BeginInvokeOnMainThread(() =>
 			{
