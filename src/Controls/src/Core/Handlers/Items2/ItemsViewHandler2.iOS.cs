@@ -200,81 +200,20 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
 			var contentSize = Controller.GetSize();
-			IView virtualView = VirtualView;
 
-
-			var totalItems = 0;
-			double itemHeight = 0;
-			if (Controller?.CollectionView is not null)
-			{
-				var collectionView = Controller.CollectionView;
-				var numberOfSections = collectionView.NumberOfSections();
-
-				for (nint section = 0; section < numberOfSections; section++)
-				{
-					totalItems += (int)collectionView.NumberOfItemsInSection(section);
-				}
-
-				// Try to get the height of the first visible cell if possible
-				var visibleCells = collectionView.VisibleCells;
-				if (totalItems > 0 && visibleCells != null && visibleCells.Length > 0)
-				{
-					itemHeight = visibleCells[0].Frame.Height;
-				}
-			}
-
-			double minHeight = virtualView.MinimumHeight > 0 ? virtualView.MinimumHeight : 1;
-			double minWidth = virtualView.MinimumWidth > 0 ? virtualView.MinimumWidth : 0;
-
-			// If no items, return minimal size for Auto sizing to work properly
-			if (totalItems == 0)
-			{
-				return new Size(
-					ViewHandlerExtensions.ResolveConstraints(minWidth, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth),
-					ViewHandlerExtensions.ResolveConstraints(minHeight, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight)
-				);
-			}
-
-			// If contentSize is zero but we have items, estimate using itemHeight if available
+			// If contentSize comes back null, it means none of the content has been realized yet;
+			// we need to return the expansive size the collection view wants by default to get
+			// it to start measuring its content
 			if (contentSize.Height == 0 || contentSize.Width == 0)
 			{
 				return base.GetDesiredSize(widthConstraint, heightConstraint);
-				// if (itemHeight > 0)
-				// {
-				// 	var estimatedHeight = Math.Max(minHeight, itemHeight * totalItems);
-				// 	var estimatedWidth = Math.Max(minWidth, widthConstraint);
-
-				// 	// if (double.IsFinite(heightConstraint) && estimatedHeight > heightConstraint)
-				// 	// 	estimatedHeight = heightConstraint;
-				// 	// if (double.IsFinite(widthConstraint) && estimatedWidth > widthConstraint)
-				// 	// 	estimatedWidth = widthConstraint;
-
-				// 	return new Size(
-				// 		ViewHandlerExtensions.ResolveConstraints(estimatedWidth, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth),
-				// 		ViewHandlerExtensions.ResolveConstraints(estimatedHeight, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight)
-				// 	);
-				// }
-				// else
-				// {
-				// 	return new Size(
-				// 	ViewHandlerExtensions.ResolveConstraints(minWidth, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth),
-				// 	ViewHandlerExtensions.ResolveConstraints(minHeight, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight));
-				// }
 			}
 
-
-
-			// 	var size = base.GetDesiredSize(widthConstraint, heightConstraint);
-			// 	if (double.IsFinite(heightConstraint) && estimatedHeight > size.Height)
-			// 		estimatedHeight = heightConstraint;
-			// 	if (double.IsFinite(widthConstraint) && estimatedWidth > size.Width)
-			// 		estimatedWidth = widthConstraint;
-			// 	return new Size(minWidth, minHeight);
-			// }
-			// // Our target size is the smaller of it and the constraints
+			// Our target size is the smaller of it and the constraints
 			var width = contentSize.Width <= widthConstraint ? contentSize.Width : widthConstraint;
 			var height = contentSize.Height <= heightConstraint ? contentSize.Height : heightConstraint;
 
+			IView virtualView = VirtualView;
 
 			width = ViewHandlerExtensions.ResolveConstraints(width, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth);
 			height = ViewHandlerExtensions.ResolveConstraints(height, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight);
