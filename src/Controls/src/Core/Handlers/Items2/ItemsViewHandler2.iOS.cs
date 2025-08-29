@@ -86,13 +86,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			MapItemsUpdatingScrollMode(handler, itemsView);
 			handler.Controller?.UpdateItemsSource();
 
-
-			// Subscribe to size changes from ObservableItemsSource
+			//Subscribe to size changes from ObservableItemsSource
 			if (handler.Controller?.ItemsSource is Items.ObservableItemsSource observableSource)
 			{
 				observableSource.SizeChanged += (oldSize, newSize) =>
 				{
-					handler.VirtualView?.InvalidateMeasure();
+					handler.HandleSizeChangedForLayoutInvalidation();
 				};
 			}
 		}
@@ -200,12 +199,30 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		public override Size GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
 			var contentSize = Controller.GetSize();
+			IView virtualView = VirtualView;
+
+			var (totalItems, itemHeight) = GetCollectionViewMetrics();
+
+			double minHeight = virtualView.MinimumHeight > 0 ? virtualView.MinimumHeight : 1;
+			double minWidth = virtualView.MinimumWidth > 0 ? virtualView.MinimumWidth : 0;
+
+			// If no items, return minimal size for Auto sizing to work properly
+			if (totalItems == 0)
+			{
+				return new Size(
+					ViewHandlerExtensions.ResolveConstraints(minWidth, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth),
+					ViewHandlerExtensions.ResolveConstraints(minHeight, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight)
+
+				);
+			}
+
 
 			// If contentSize comes back null, it means none of the content has been realized yet;
 			// we need to return the expansive size the collection view wants by default to get
 			// it to start measuring its content
 			if (contentSize.Height == 0 || contentSize.Width == 0)
 			{
+
 				return base.GetDesiredSize(widthConstraint, heightConstraint);
 			}
 
@@ -213,12 +230,66 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			var width = contentSize.Width <= widthConstraint ? contentSize.Width : widthConstraint;
 			var height = contentSize.Height <= heightConstraint ? contentSize.Height : heightConstraint;
 
-			IView virtualView = VirtualView;
 
 			width = ViewHandlerExtensions.ResolveConstraints(width, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth);
 			height = ViewHandlerExtensions.ResolveConstraints(height, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight);
 
 			return new Size(width, height);
+		}
+
+		/// <summary>
+		/// Gets the total number of items and average item height from the collection view
+		/// </summary>
+		/// <returns>Tuple containing (totalItems, itemHeight)</returns>
+		internal (int totalItems, double itemHeight) GetCollectionViewMetrics()
+		{
+			var totalItems = 0;
+			double itemHeight = 0;
+
+			if (Controller?.CollectionView is not null)
+			{
+				var collectionView = Controller.CollectionView;
+				var numberOfSections = collectionView.NumberOfSections();
+
+				for (nint section = 0; section < numberOfSections; section++)
+				{
+					totalItems += (int)collectionView.NumberOfItemsInSection(section);
+				}
+
+				// Try to get the height of the first visible cell if possible
+				var visibleCells = collectionView.VisibleCells;
+				if (totalItems > 0 && visibleCells != null && visibleCells.Length > 0)
+				{
+					itemHeight = visibleCells[0].Frame.Height;
+				}
+			}
+
+			return (totalItems, itemHeight);
+		}
+
+		/// <summary>
+		/// Handles size changed events to determine if layout invalidation is needed
+		/// </summary>
+		internal void HandleSizeChangedForLayoutInvalidation()
+		{
+			var (totalItems, itemHeight) = GetCollectionViewMetrics();
+
+			if (Controller?.CollectionView is not null && itemHeight >= 1)
+			{
+				var collectionView = Controller.CollectionView;
+
+				// Calculate total height needed for all items
+				double totalItemsHeight = totalItems * itemHeight;
+
+				// Get current bounds height
+				double currentBoundsHeight = collectionView.Bounds.Height;
+
+				// If bounds are smaller than needed height, invalidate measure
+				if (currentBoundsHeight < totalItemsHeight)
+				{
+					VirtualView?.InvalidateMeasure();
+				}
+			}
 		}
 	}
 }
