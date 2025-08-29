@@ -319,10 +319,23 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return;
 			}
 
+			// Capture size before update
+			var sizeBefore = collectionView.ContentSize;
+
 			OnCollectionViewUpdating(args);
 			update(collectionView);
 			OnCollectionViewUpdated(args);
+
+			// Check size after update and notify if changed
+			var sizeAfter = collectionView.ContentSize;
+			if (!sizeBefore.Equals(sizeAfter))
+			{
+				SizeChanged?.Invoke(sizeBefore, sizeAfter);
+			}
 		}
+
+		// Event to notify when CollectionView size changes
+		internal event System.Action<CoreGraphics.CGSize, CoreGraphics.CGSize> SizeChanged;
 
 		void OnCollectionViewUpdating(NotifyCollectionChangedEventArgs args)
 		{
