@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.Issues.Issue19"
+             Title="Issue19">
+    <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, *">
+        
+        <!-- Buttons to test dynamic updates -->
+        <Button Grid.Row="0" x:Name="UpdateHeaderButton" Text="Update Header" AutomationId="UpdateHeaderButton" />
+        <Button Grid.Row="1" x:Name="UpdateFooterButton" Text="Update Footer" AutomationId="UpdateFooterButton" />
+        <Button Grid.Row="2" x:Name="UpdateHeaderTemplateButton" Text="Update Header Template" AutomationId="UpdateHeaderTemplateButton" />
+        <Button Grid.Row="3" x:Name="UpdateFooterTemplateButton" Text="Update Footer Template" AutomationId="UpdateFooterTemplateButton" />
+        <Button Grid.Row="4" x:Name="UpdateGroupTemplatesButton" Text="Update Group Templates" AutomationId="UpdateGroupTemplatesButton" />
+        
+        <!-- CollectionView to test dynamic updates -->
+        <CollectionView Grid.Row="5" x:Name="TestCollectionView" AutomationId="TestCollectionView">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid Padding="10">
+                        <Label Text="{Binding .}" AutomationId="{Binding StringFormat='Item_{0}'}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        
+    </Grid>
+</ContentPage>
