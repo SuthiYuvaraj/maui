@@ -77,7 +77,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 		public static void MapItemSizingStrategy(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 		{
-
+			handler.UpdateItemSizingStrategy();
 		}
 
 		protected override ListViewBase SelectListViewBase()
@@ -308,6 +308,120 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 						break;
 				}
 			}
+		}
+
+		void UpdateItemSizingStrategy()
+		{
+			if (ListViewBase == null || ItemsView == null)
+			{
+				return;
+			}
+
+			// For Windows, ItemSizingStrategy.MeasureFirstItem needs special handling
+			// We need to ensure all items have the same size based on the first item
+			if (ItemsView.ItemSizingStrategy == ItemSizingStrategy.MeasureFirstItem)
+			{
+				// Force a uniform item container style that will make all items the same size
+				SetUniformItemSizing();
+			}
+			else
+			{
+				// Allow items to size individually
+				ClearUniformItemSizing();
+			}
+		}
+
+		void SetUniformItemSizing()
+		{
+			if (ListViewBase == null || ItemsView?.ItemsLayout == null)
+			{
+				return;
+			}
+
+			// Apply uniform sizing based on the item layout type
+			switch (ItemsView.ItemsLayout)
+			{
+				case GridItemsLayout gridLayout:
+					if (ListViewBase is FormsGridView gridView)
+					{
+						var uniformStyle = GetUniformGridItemContainerStyle(gridLayout);
+						gridView.ItemContainerStyle = uniformStyle;
+					}
+					break;
+
+				case LinearItemsLayout linearLayout when linearLayout.Orientation == ItemsLayoutOrientation.Vertical:
+					if (ListViewBase is FormsListView listView)
+					{
+						var uniformStyle = GetUniformVerticalItemContainerStyle(linearLayout);
+						listView.ItemContainerStyle = uniformStyle;
+					}
+					break;
+
+				case LinearItemsLayout linearLayout when linearLayout.Orientation == ItemsLayoutOrientation.Horizontal:
+					var uniformHorizontalStyle = GetUniformHorizontalItemContainerStyle(linearLayout);
+					ListViewBase.ItemContainerStyle = uniformHorizontalStyle;
+					break;
+			}
+		}
+
+		void ClearUniformItemSizing()
+		{
+			// Restore the default item container styles
+			UpdateItemsLayoutItemSpacing();
+		}
+
+		static WStyle GetUniformGridItemContainerStyle(GridItemsLayout layout)
+		{
+			var h = layout?.HorizontalItemSpacing ?? 0;
+			var v = layout?.VerticalItemSpacing ?? 0;
+			var margin = WinUIHelpers.CreateThickness(h, v, h, v);
+
+			var style = new WStyle(typeof(GridViewItem));
+
+			// Set uniform size for MeasureFirstItem - using reasonable defaults
+			style.Setters.Add(new WSetter(FrameworkElement.WidthProperty, 120.0));
+			style.Setters.Add(new WSetter(FrameworkElement.HeightProperty, 120.0));
+			style.Setters.Add(new WSetter(FrameworkElement.MarginProperty, margin));
+			style.Setters.Add(new WSetter(Control.PaddingProperty, WinUIHelpers.CreateThickness(0)));
+			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
+
+			return style;
+		}
+
+		static WStyle GetUniformVerticalItemContainerStyle(LinearItemsLayout layout)
+		{
+			var v = layout?.ItemSpacing ?? 0;
+			var margin = WinUIHelpers.CreateThickness(0, v, 0, v);
+
+			var style = new WStyle(typeof(ListViewItem));
+
+			// Set uniform height for MeasureFirstItem
+			style.Setters.Add(new WSetter(FrameworkElement.HeightProperty, 44.0));
+			style.Setters.Add(new WSetter(FrameworkElement.MinHeightProperty, 44.0));
+			style.Setters.Add(new WSetter(FrameworkElement.MarginProperty, margin));
+			style.Setters.Add(new WSetter(Control.PaddingProperty, WinUIHelpers.CreateThickness(0)));
+			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
+
+			return style;
+		}
+
+		static WStyle GetUniformHorizontalItemContainerStyle(LinearItemsLayout layout)
+		{
+			var h = layout?.ItemSpacing ?? 0;
+			var padding = WinUIHelpers.CreateThickness(h, 0, h, 0);
+
+			var style = new WStyle(typeof(ListViewItem));
+
+			// Set uniform width for MeasureFirstItem
+			style.Setters.Add(new WSetter(FrameworkElement.WidthProperty, 100.0));
+			style.Setters.Add(new WSetter(FrameworkElement.MinWidthProperty, 100.0));
+			style.Setters.Add(new WSetter(Control.PaddingProperty, padding));
+			style.Setters.Add(new WSetter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Stretch));
+			style.Setters.Add(new WSetter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+
+			return style;
 		}
 	}
 }
