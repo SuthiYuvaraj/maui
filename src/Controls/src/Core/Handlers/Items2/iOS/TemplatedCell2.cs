@@ -100,6 +100,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 						if (!cached.IsZero)
 						{
 							_measuredSize = cached;
+
+							// Only call measure when we detect elements that need it for proper sizing
+							// This prevents unnecessary performance impact for working scenarios
+							if (RequiresMeasureForCachedSizing(virtualView))
+							{
+								// Following Android implementation: ensure child elements that need it
+								// participate in the measure lifecycle to update their internal state
+								virtualView.Measure(cached.Width, cached.Height);
+							}
+
+
 						}
 						else
 						{
@@ -346,6 +357,40 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				SelectedBackgroundView.BackgroundColor = UIColor.Clear;
 			}
 		}
+
+		bool RequiresMeasureForCachedSizing(IView view)
+		{
+			// The core issue: when elements have explicit sizing (HeightRequest, WidthRequest, etc.)
+			// and cached sizing is used, their DesiredSize doesn't get set properly because
+			// the Measure() call is skipped. This affects any element type.
+			return HasExplicitSizing(view as VisualElement);
+		}
+
+		bool HasExplicitSizing(VisualElement element)
+		{
+			if (element == null)
+				return false;
+
+			if (element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
+				element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0)
+			{
+				return true;
+			}
+
+			if (element is IElementController controller)
+			{
+				foreach (var child in controller.LogicalChildren)
+				{
+					if (child is VisualElement childElement && HasExplicitSizing(childElement))
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
 
 		void IPlatformMeasureInvalidationController.InvalidateAncestorsMeasuresWhenMovedToWindow()
 		{
