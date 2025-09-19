@@ -109,7 +109,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 								// Based Android Implementation, ensure child elements that need measurement participate in the measure 
 								// lifecycle to update their internal state even with cached sizing
 								virtualView.Measure(constraints.Width, cached.Height);
-								Debug.WriteLine("MeasureCalled {0}", virtualView as View);
 							}
 						}
 						else
@@ -358,7 +357,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			}
 		}
 
-		private bool NeedsMeasure(VisualElement element)
+		bool NeedsMeasure(VisualElement element)
 		{
 			if (element == null)
 				return false;
@@ -366,73 +365,68 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			if (element is Button || element is ImageButton)
 				return false;
 
-			// Check specific View types before Layout check
-			if (element is Border)
+			if (element is Border || element is ContentView)
 				return true;
 
-			if (element is BoxView || element is Label || element is ContentView)
+			if (element is BoxView || element is Label)
 			{
-				var hasViewExplicitSizing = element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
-										element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
-				return hasViewExplicitSizing;
+				return HasExplicitSizing(element);
 			}
 
 			if (element is Layout layout)
 			{
-				if (element is Grid grid)
-				{
-					var hasExplicitSizing = layout.HeightRequest >= 0 || layout.WidthRequest >= 0 ||
-											layout.MinimumHeightRequest >= 0 || layout.MinimumWidthRequest >= 0;
-
-					if (hasExplicitSizing)
-					{
-						return true;
-					}
-
-					if (HasComplexChildrenNeedingMeasure(grid))
-					{
-						return true;
-					}
-
-					return false;
-				}
-				if (element is StackBase || element is FlexLayout || element is AbsoluteLayout)
-				{
-					return true;
-				}
-
-				return false;
+				return EvaluateLayoutMeasurementNeeds(layout);
 			}
 
 			return false;
 		}
 
-		private bool HasExplicitSizing(VisualElement element)
+		/// <summary>
+		/// Evaluates whether a layout requires measurement based on its type and characteristics.
+		/// </summary>
+		bool EvaluateLayoutMeasurementNeeds(Layout layout)
 		{
-			return element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
-				   element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
+			switch (layout)
+			{
+				case Grid grid:
+					return HasExplicitSizing(grid) || HasComplexChildrenNeedingMeasure(grid);
+
+				case StackBase:
+				case FlexLayout:
+				case AbsoluteLayout:
+					return true;
+
+				default:
+					return false;
+			}
 		}
 
-		private bool HasComplexChildrenNeedingMeasure(Grid grid)
-		{
-			if (grid is IElementController controller)
-			{
-				foreach (var child in controller.LogicalChildren)
-				{
-					if (child is VisualElement childElement)
-					{
-						if (HasExplicitSizing(childElement))
-						{
-							return true;
-						}
 
-						if (childElement is Layout childLayout && !(childLayout is Grid))
-						{
-							return true;
-						}
-					}
-				}
+		bool HasExplicitSizing(VisualElement element)
+		{
+			return element.HeightRequest >= 0 ||
+				   element.WidthRequest >= 0 ||
+				   element.MinimumHeightRequest >= 0 ||
+				   element.MinimumWidthRequest >= 0;
+		}
+
+		bool HasComplexChildrenNeedingMeasure(Grid grid)
+		{
+			if (grid is not IElementController controller)
+				return false;
+
+			foreach (var child in controller.LogicalChildren)
+			{
+				if (child is not VisualElement childElement)
+					continue;
+
+				if (HasExplicitSizing(childElement))
+					return true;
+
+				if (childElement is Layout childLayout && childLayout is not Grid)
+					return true;
 			}
+
 			return false;
 		}
 
