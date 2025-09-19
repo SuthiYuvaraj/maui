@@ -109,6 +109,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 								// Based Android Implementation, ensure child elements that need measurement participate in the measure 
 								// lifecycle to update their internal state even with cached sizing
 								virtualView.Measure(constraints.Width, cached.Height);
+								Debug.WriteLine("MeasureCalled {0}", virtualView as View);
 							}
 						}
 						else
@@ -365,6 +366,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			if (element is Button || element is ImageButton)
 				return false;
 
+			// Check specific View types before Layout check
+			if (element is Border)
+				return true;
+
+			if (element is BoxView || element is Label || element is ContentView)
+			{
+				var hasViewExplicitSizing = element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
+										element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
+				return hasViewExplicitSizing;
+			}
+
 			if (element is Layout layout)
 			{
 				if (element is Grid grid)
@@ -384,23 +396,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 					return false;
 				}
-				if (element is StackBase)
+				if (element is StackBase || element is FlexLayout || element is AbsoluteLayout)
 				{
 					return true;
 				}
 
 				return false;
-			}
-
-			if (element is View)
-			{
-				if (element is Border || element is Label || element is BoxView)
-					return true;
-
-				var hasViewExplicitSizing = element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
-										element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
-
-				return hasViewExplicitSizing;
 			}
 
 			return false;
@@ -424,7 +425,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 						{
 							return true;
 						}
-
 
 						if (childElement is Layout childLayout && !(childLayout is Grid))
 						{
