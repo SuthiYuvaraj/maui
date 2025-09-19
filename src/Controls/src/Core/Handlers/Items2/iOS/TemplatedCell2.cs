@@ -1,6 +1,7 @@
 #nullable disable
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Controls.Internals;
@@ -101,16 +102,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 						{
 							_measuredSize = cached;
 
-							// Only call measure when we detect elements that need it for proper sizing
+							// Only call measure when we detect layouts that need it for proper child sizing
 							// This prevents unnecessary performance impact for working scenarios
-							if (RequiresMeasureForCachedSizing(virtualView))
+							if (NeedsMeasure(virtualView as VisualElement))
 							{
-								// Following Android implementation: ensure child elements that need it
-								// participate in the measure lifecycle to update their internal state
-								virtualView.Measure(cached.Width, cached.Height);
+								// Based Android Implementation, ensure child elements that need measurement participate in the measure 
+								// lifecycle to update their internal state even with cached sizing
+								virtualView.Measure(constraints.Width, cached.Height);
 							}
-
-
 						}
 						else
 						{
@@ -358,39 +357,84 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			}
 		}
 
-		bool RequiresMeasureForCachedSizing(IView view)
-		{
-			// The core issue: when elements have explicit sizing (HeightRequest, WidthRequest, etc.)
-			// and cached sizing is used, their DesiredSize doesn't get set properly because
-			// the Measure() call is skipped. This affects any element type.
-			return HasExplicitSizing(view as VisualElement);
-		}
-
-		bool HasExplicitSizing(VisualElement element)
+		private bool NeedsMeasure(VisualElement element)
 		{
 			if (element == null)
 				return false;
 
-			if (element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
-				element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0)
-			{
-				return true;
-			}
+			if (element is Button || element is ImageButton)
+				return false;
 
-			if (element is IElementController controller)
+			if (element is Layout layout)
 			{
-				foreach (var child in controller.LogicalChildren)
+				if (element is Grid grid)
 				{
-					if (child is VisualElement childElement && HasExplicitSizing(childElement))
+					var hasExplicitSizing = layout.HeightRequest >= 0 || layout.WidthRequest >= 0 ||
+											layout.MinimumHeightRequest >= 0 || layout.MinimumWidthRequest >= 0;
+
+					if (hasExplicitSizing)
 					{
 						return true;
 					}
+
+					if (HasComplexChildrenNeedingMeasure(grid))
+					{
+						return true;
+					}
+
+					return false;
 				}
+				if (element is StackBase)
+				{
+					return true;
+				}
+
+				return false;
+			}
+
+			if (element is View)
+			{
+				if (element is Border || element is Label || element is BoxView)
+					return true;
+
+				var hasViewExplicitSizing = element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
+										element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
+
+				return hasViewExplicitSizing;
 			}
 
 			return false;
 		}
 
+		private bool HasExplicitSizing(VisualElement element)
+		{
+			return element.HeightRequest >= 0 || element.WidthRequest >= 0 ||
+				   element.MinimumHeightRequest >= 0 || element.MinimumWidthRequest >= 0;
+		}
+
+		private bool HasComplexChildrenNeedingMeasure(Grid grid)
+		{
+			if (grid is IElementController controller)
+			{
+				foreach (var child in controller.LogicalChildren)
+				{
+					if (child is VisualElement childElement)
+					{
+						if (HasExplicitSizing(childElement))
+						{
+							return true;
+						}
+
+
+						if (childElement is Layout childLayout && !(childLayout is Grid))
+						{
+							return true;
+						}
+					}
+				}
+			}
+			return false;
+		}
 
 		void IPlatformMeasureInvalidationController.InvalidateAncestorsMeasuresWhenMovedToWindow()
 		{
