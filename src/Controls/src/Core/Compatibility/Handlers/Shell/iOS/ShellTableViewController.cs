@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using CoreAnimation;
 using CoreGraphics;
+using Foundation;
 using ObjCRuntime;
 using UIKit;
 
@@ -76,17 +77,22 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 		{
 			base.ViewDidLoad();
 
-			TableView.SeparatorStyle = UITableViewCellSeparatorStyle.None;
+			var customTableView = new AccessibilityNeutralTableView();
+			customTableView.SeparatorStyle = UITableViewCellSeparatorStyle.None;
+
 			if (OperatingSystem.IsIOSVersionAtLeast(11) || OperatingSystem.IsMacCatalystVersionAtLeast(11)
 #if TVOS
 				|| OperatingSystem.IsTvOSVersionAtLeast(11)
 #endif
 			)
 			{
-				TableView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
+				customTableView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
 			}
 
-			TableView.Source = _source;
+			customTableView.Source = _source;
+
+			TableView = customTableView;
+
 			ShellFlyoutContentManager.ViewDidLoad();
 		}
 
@@ -118,5 +124,15 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			_isDisposed = true;
 			base.Dispose(disposing);
 		}
+	}
+
+	internal class AccessibilityNeutralTableView : UITableView
+	{
+
+		[Export("_accessibilityRoleDescription")]
+		public NSString RoleDescription => new NSString("list");
+
+
+
 	}
 }
