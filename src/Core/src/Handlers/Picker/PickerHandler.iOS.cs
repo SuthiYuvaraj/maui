@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using UIKit;
 using RectangleF = CoreGraphics.CGRect;
@@ -61,10 +62,16 @@ namespace Microsoft.Maui.Handlers
 			// This behavior deviates from the expected native macOS behavior.
 			var pickerController = UIAlertController.Create("", "", UIAlertControllerStyle.ActionSheet);
 
-			// needs translation
+			// Flag to prevent premature dismissal during VoiceOver focus changes
+			bool isPickerActive = true;
+
 			pickerController.AddAction(UIAlertAction.Create("Done",
 								UIAlertActionStyle.Default,
-								action => FinishSelectItem(pickerView, uITextField)
+								action =>
+								{
+									isPickerActive = false;
+									FinishSelectItem(pickerView, uITextField);
+								}
 							));
 
 			if (pickerController.View != null && pickerView != null)
@@ -82,14 +89,22 @@ namespace Microsoft.Maui.Handlers
 				popoverPresentation.SourceRect = uITextField.Bounds;
 			}
 
+			// Create a controlled EditingDidEnd handler that checks if picker is still active
 			EventHandler? editingDidEndHandler = null;
-
 			editingDidEndHandler = async (s, e) =>
 			{
-				await pickerController.DismissViewControllerAsync(true);
-				if (VirtualView is IPicker virtualView)
-					virtualView.IsFocused = false;
-				uITextField.EditingDidEnd -= editingDidEndHandler;
+				// Only dismiss if:
+				// 1. Picker is no longer active (Done/Cancel was pressed)
+				// 2. Picker controller is not being presented
+				if (!isPickerActive && pickerController.PresentingViewController == null)
+				{
+					await pickerController.DismissViewControllerAsync(true);
+					if (VirtualView is IPicker virtualView)
+						virtualView.IsFocused = false;
+
+					// Remove handler after dismissal
+					uITextField.EditingDidEnd -= editingDidEndHandler;
+				}
 			};
 
 			uITextField.EditingDidEnd += editingDidEndHandler;
