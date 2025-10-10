@@ -102,6 +102,10 @@ namespace Microsoft.Maui
 			}
 			else
 			{
+				// Apply explicit dimensions from WidthRequest/HeightRequest for layouts and other views
+				widthConstraint = IsExplicitSet(virtualView.Width) ? virtualView.Width : widthConstraint;
+				heightConstraint = IsExplicitSet(virtualView.Height) ? virtualView.Height : heightConstraint;
+
 				sizeThatFits = platformView.SizeThatFits(new CGSize((float)widthConstraint, (float)heightConstraint));
 			}
 
