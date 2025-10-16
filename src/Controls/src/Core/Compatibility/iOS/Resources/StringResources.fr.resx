@@ -125,4 +125,16 @@
     <value>Plus</value>
     <comment>ContextActionCell More button</comment>
   </data>
+    <data name="NavigationFlyoutMenuLabel" xml:space="preserve">
+    <value>Menu de Navigation Déroulant</value>
+    <comment>Accessibility label for Shell flyout navigation menu</comment>
+  </data>
+  <data name="NavigationFlyoutMenuValue" xml:space="preserve">
+    <value>Étendu</value>
+    <comment>Accessibility value for Shell flyout navigation menu when expanded</comment>
+  </data>
+  <data name="NavigationFlyoutMenuHint" xml:space="preserve">
+    <value>Glissez vers la droite pour naviguer vers les éléments du menu.</value>
+    <comment>Accessibility hint for Shell flyout navigation menu</comment>
+  </data>
 </root>

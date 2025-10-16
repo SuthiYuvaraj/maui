@@ -6,6 +6,7 @@ using CoreAnimation;
 using CoreGraphics;
 using ObjCRuntime;
 using UIKit;
+using Microsoft.Maui.Controls.Compatibility.iOS.Resources;
 
 namespace Microsoft.Maui.Controls.Platform.Compatibility
 {
@@ -88,10 +89,9 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 			TableView.AccessibilityTraits = UIAccessibilityTrait.None;
 
-			TableView.AccessibilityLabel = "Navigation Flyout Menu";
-			TableView.AccessibilityValue = "Expanded";
-			TableView.AccessibilityHint = "Swipe right to navigate to menu items.";
-			TableView.AccessibilityIdentifier = "FlyoutNavigationMenu";
+			TableView.AccessibilityLabel = StringResources.NavigationFlyoutMenuLabel;
+			TableView.AccessibilityValue = StringResources.NavigationFlyoutMenuValue;
+			TableView.AccessibilityHint = StringResources.NavigationFlyoutMenuHint;
 
 			TableView.IsAccessibilityElement = false;
 			TableView.AccessibilityElementsHidden = false;
