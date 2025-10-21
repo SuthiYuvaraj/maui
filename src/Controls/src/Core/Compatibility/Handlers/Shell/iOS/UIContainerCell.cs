@@ -30,8 +30,14 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 			var platformView = view.ToPlatform();
 			ContentView.AddSubview(platformView);
-			platformView.AccessibilityTraits |= UIAccessibilityTrait.Button;
+			
+			// Make sure VoiceOver focuses on the cell, not the inner platform view
+			platformView.IsAccessibilityElement = false;
 			platformView.TranslatesAutoresizingMaskIntoConstraints = false;
+			
+			// Make this cell accessible for VoiceOver
+			IsAccessibilityElement = true;
+			AccessibilityTraits = UIAccessibilityTrait.Button;
 
 			var margin = view.Margin;
 			var constraints = new NSLayoutConstraint[]
@@ -145,5 +151,9 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				UpdateVisualState();
 			}
 		}
+    
+        public override bool CanBecomeFocused => true;
+        
+        public override bool CanBecomeFirstResponder => true;
 	}
 }

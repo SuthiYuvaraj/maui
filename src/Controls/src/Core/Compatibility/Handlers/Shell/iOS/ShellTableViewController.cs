@@ -86,6 +86,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				TableView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
 			}
 
+			TableView.AccessibilityElementsHidden = true;
 			TableView.Source = _source;
 			ShellFlyoutContentManager.ViewDidLoad();
 		}
