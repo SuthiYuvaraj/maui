@@ -127,7 +127,7 @@ public class Issue29130 : ContentPage
 				
 				var sizeLabel = new Label
 				{
-					Text = "📏",
+					Text = "SIZE",
 					FontSize = 20,
 					VerticalOptions = LayoutOptions.Center
 				};
