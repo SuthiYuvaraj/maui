@@ -29,14 +29,5 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			(handler.PlatformView as MauiCollectionView<TItemsView>)?.UpdateLayoutManager();
 		}
-
-		public static void MapFooter(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
-		{
-			(handler.PlatformView as MauiCollectionView<TItemsView>)?.UpdateAdaptor();
-		}
-		public static void MapHeader(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
-		{
-			(handler.PlatformView as MauiCollectionView<TItemsView>)?.UpdateAdaptor();
-		}
 	}
 }
