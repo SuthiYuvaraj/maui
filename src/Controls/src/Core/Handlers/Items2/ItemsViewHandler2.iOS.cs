@@ -6,6 +6,7 @@ using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Controls.Handlers.Items;
 using ObjCRuntime;
 using UIKit;
 
@@ -36,28 +37,28 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			[Controls.ItemsView.ItemsUpdatingScrollModeProperty.PropertyName] = MapItemsUpdatingScrollMode
 		};
 
-		UICollectionViewLayout _layout;
-		CoreGraphics.CGSize _lastContentSize;
+	UICollectionViewLayout _layout;
+	ObservableItemsSource _observableItemsSource;
 
-		protected override void DisconnectHandler(UIView platformView)
+	protected override void DisconnectHandler(UIView platformView)
+	{
+		ItemsView.ScrollToRequested -= ScrollToRequested;
+		
+		// Unsubscribe from SizeChanged event to prevent memory leaks
+		if (_observableItemsSource != null)
 		{
-			ItemsView.ScrollToRequested -= ScrollToRequested;
-			_layout = null;
-			Controller?.DisposeItemsSource();
-			base.DisconnectHandler(platformView);
+			_observableItemsSource.SizeChanged -= OnObservableItemsSourceSizeChanged;
+			_observableItemsSource = null;
 		}
-
-		protected override void ConnectHandler(UIView platformView)
+		
+		_layout = null;
+		Controller?.DisposeItemsSource();
+		base.DisconnectHandler(platformView);
+	}		protected override void ConnectHandler(UIView platformView)
 		{
 			base.ConnectHandler(platformView);
 			Controller.CollectionView.BackgroundColor = UIColor.Clear;
 			ItemsView.ScrollToRequested += ScrollToRequested;
-
-			// Initialize content size tracking
-			if (Controller?.CollectionView != null)
-			{
-				_lastContentSize = Controller.CollectionView.ContentSize;
-			}
 		}
 
 		private protected override UIView OnCreatePlatformView()
@@ -81,22 +82,26 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			return controllerView;
 		}
 
-		public static void MapItemsSource(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
+	public static void MapItemsSource(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
+	{
+		MapItemsUpdatingScrollMode(handler, itemsView);
+		
+		// Unsubscribe from previous observable source if it exists
+		if (handler._observableItemsSource != null)
 		{
-			MapItemsUpdatingScrollMode(handler, itemsView);
-			handler.Controller?.UpdateItemsSource();
-
-			//Subscribe to size changes from ObservableItemsSource
-			if (handler.Controller?.ItemsSource is Items.ObservableItemsSource observableSource)
-			{
-				observableSource.SizeChanged += (oldSize, newSize) =>
-				{
-					handler.HandleSizeChangedForLayoutInvalidation();
-				};
-			}
+			handler._observableItemsSource.SizeChanged -= handler.OnObservableItemsSourceSizeChanged;
+			handler._observableItemsSource = null;
 		}
+		
+		handler.Controller?.UpdateItemsSource();
 
-		public static void MapHorizontalScrollBarVisibility(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
+		// Subscribe to size changes from ObservableItemsSource
+		if (handler.Controller?.ItemsSource is ObservableItemsSource observableSource)
+		{
+			handler._observableItemsSource = observableSource;
+			handler._observableItemsSource.SizeChanged += handler.OnObservableItemsSourceSizeChanged;
+		}
+	}		public static void MapHorizontalScrollBarVisibility(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
 		{
 			handler.Controller?.CollectionView?.UpdateHorizontalScrollBarVisibility(itemsView.HorizontalScrollBarVisibility);
 		}
@@ -201,14 +206,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			var contentSize = Controller.GetSize();
 			IView virtualView = VirtualView;
 
-			var (totalItems, itemHeight) = GetCollectionViewMetrics();
-
-			double minHeight = virtualView.MinimumHeight > 0 ? virtualView.MinimumHeight : 1;
-			double minWidth = virtualView.MinimumWidth > 0 ? virtualView.MinimumWidth : 0;
+			var totalItems = GetTotalItemsCount();
 
 			// If no items, return minimal size for Auto sizing to work properly
 			if (totalItems == 0)
 			{
+				double minHeight = virtualView.MinimumHeight > 0 ? virtualView.MinimumHeight : 1;
+				double minWidth = virtualView.MinimumWidth > 0 ? virtualView.MinimumWidth : 0;
+
 				return new Size(
 					ViewHandlerExtensions.ResolveConstraints(minWidth, virtualView.Width, virtualView.MinimumWidth, virtualView.MaximumWidth),
 					ViewHandlerExtensions.ResolveConstraints(minHeight, virtualView.Height, virtualView.MinimumHeight, virtualView.MaximumHeight)
@@ -238,13 +243,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		}
 
 		/// <summary>
-		/// Gets the total number of items and average item height from the collection view
+		/// Gets the total number of items in the collection view
 		/// </summary>
-		/// <returns>Tuple containing (totalItems, itemHeight)</returns>
-		internal (int totalItems, double itemHeight) GetCollectionViewMetrics()
+		/// <returns>Total number of items across all sections</returns>
+		internal int GetTotalItemsCount()
 		{
 			var totalItems = 0;
-			double itemHeight = 0;
 
 			if (Controller?.CollectionView is not null)
 			{
@@ -255,16 +259,27 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				{
 					totalItems += (int)collectionView.NumberOfItemsInSection(section);
 				}
+			}
 
-				// Try to get the height of the first visible cell if possible
-				var visibleCells = collectionView.VisibleCells;
-				if (totalItems > 0 && visibleCells != null && visibleCells.Length > 0)
+			return totalItems;
+		}
+
+		/// <summary>
+		/// Gets the height of the first visible cell in the collection view
+		/// </summary>
+		/// <returns>Height of first visible cell, or 0 if no cells are visible</returns>
+		internal double GetFirstVisibleItemHeight()
+		{
+			if (Controller?.CollectionView is not null)
+			{
+				var visibleCells = Controller.CollectionView.VisibleCells;
+				if (visibleCells != null && visibleCells.Length > 0)
 				{
-					itemHeight = visibleCells[0].Frame.Height;
+					return visibleCells[0].Frame.Height;
 				}
 			}
 
-			return (totalItems, itemHeight);
+			return 0;
 		}
 
 		/// <summary>
@@ -272,7 +287,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// </summary>
 		internal void HandleSizeChangedForLayoutInvalidation()
 		{
-			var (totalItems, itemHeight) = GetCollectionViewMetrics();
+			var totalItems = GetTotalItemsCount();
+			var itemHeight = GetFirstVisibleItemHeight();
 
 			if (Controller?.CollectionView is not null && itemHeight >= 1)
 			{
@@ -290,6 +306,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 					VirtualView?.InvalidateMeasure();
 				}
 			}
+		}
+
+		/// <summary>
+		/// Event handler for ObservableItemsSource.SizeChanged
+		/// </summary>
+		void OnObservableItemsSourceSizeChanged(CoreGraphics.CGSize oldSize, CoreGraphics.CGSize newSize)
+		{
+			HandleSizeChangedForLayoutInvalidation();
 		}
 	}
 }

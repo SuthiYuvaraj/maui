@@ -335,11 +335,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				// Size actually changed - notify with before/after sizes
 				SizeChanged?.Invoke(sizeBefore, sizeAfter);
 			}
-			else if (args.Action == NotifyCollectionChangedAction.Add)
-			{
-				// Items were added but size didn't change - still notify to trigger layout invalidation
-				SizeChanged?.Invoke(sizeBefore, sizeBefore);
-			}
+		
 		}
 
 		// Event to notify when CollectionView size changes
