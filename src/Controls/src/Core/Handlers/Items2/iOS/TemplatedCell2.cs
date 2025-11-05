@@ -109,7 +109,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 						SetCachedFirstItemSizeToHandler(_measuredSize.ToCGSize());
 					}
 					_cachedConstraints = constraints;
-					_measuredSize = measure;
 					_needsArrange = true;
 				}
 
