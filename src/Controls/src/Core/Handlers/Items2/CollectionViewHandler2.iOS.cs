@@ -233,14 +233,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			handler.UpdateLayout();
 		}
 
-#pragma warning disable RS0016 // Add public types and members to the declared API
-		public static void MapItemTemplate(CollectionViewHandler2 handler, ItemsView itemsView)
-#pragma warning restore RS0016 // Add public types and members to the declared API
+		internal static void MapItemTemplate(CollectionViewHandler2 handler, ItemsView itemsView)
 		{
-			// Clear cache when template changes - new template may have different size
+			// Clear the cached first item measured size when the item template changes. 
+			// A new template may have different layout, content, or styling that results in different dimensions.
+			// so we must invalidate the cache to ensure the first item with the new template gets measured properly.
 			handler._firstItemMeasuredSize = CoreGraphics.CGSize.Empty;
 
-			// Call base implementation
+			// Call the base implementation to handle the template change and update the collection view
 			ItemsViewHandler2<ReorderableItemsView>.MapItemTemplate(handler, itemsView);
 		}
 

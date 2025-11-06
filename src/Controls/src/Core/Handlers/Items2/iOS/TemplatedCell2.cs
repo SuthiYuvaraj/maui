@@ -70,6 +70,23 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 		internal UIView PlatformView { get; set; }
 
+		/// <summary>
+		/// Gets the CollectionViewHandler2 for accessing MeasureFirstItem cache.
+		/// </summary>
+		CollectionViewHandler2 CollectionViewHandler
+		{
+			get
+			{
+				if (PlatformHandler?.VirtualView is View view &&
+					view.Parent is ItemsView itemsView &&
+					itemsView.Handler is CollectionViewHandler2 handler)
+				{
+					return handler;
+				}
+				return null;
+			}
+		}
+
 		internal void Unbind()
 		{
 			_bound = false;
@@ -141,13 +158,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// </summary>
 		private CGSize GetCachedFirstItemSizeFromHandler()
 		{
-			if (PlatformHandler?.VirtualView is View view &&
-				view.Parent is ItemsView itemsView &&
-				itemsView.Handler is CollectionViewHandler2 handler)
-			{
-				return handler.GetCachedFirstItemSize();
-			}
-			return CGSize.Empty;
+			return CollectionViewHandler?.GetCachedFirstItemSize() ?? CGSize.Empty;
 		}
 
 		/// <summary>
@@ -155,12 +166,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// </summary>
 		private void SetCachedFirstItemSizeToHandler(CGSize size)
 		{
-			if (PlatformHandler?.VirtualView is View view &&
-				view.Parent is ItemsView itemsView &&
-				itemsView.Handler is CollectionViewHandler2 handler)
-			{
-				handler.SetCachedFirstItemSize(size);
-			}
+			CollectionViewHandler?.SetCachedFirstItemSize(size);
 		}
 
 		public override void LayoutSubviews()
