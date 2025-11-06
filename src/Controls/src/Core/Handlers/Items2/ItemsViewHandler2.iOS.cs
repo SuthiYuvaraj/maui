@@ -246,7 +246,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// Gets the total number of items in the collection view
 		/// </summary>
 		/// <returns>Total number of items across all sections</returns>
-		internal int GetTotalItemsCount()
+		private int GetTotalItemsCount()
 		{
 			var totalItems = 0;
 
@@ -268,7 +268,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// Gets the height of the first visible cell in the collection view
 		/// </summary>
 		/// <returns>Height of first visible cell, or 0 if no cells are visible</returns>
-		internal double GetFirstVisibleItemHeight()
+		private double GetFirstVisibleItemHeight()
 		{
 			if (Controller?.CollectionView is not null)
 			{
@@ -285,7 +285,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// <summary>
 		/// Handles size changed events to determine if layout invalidation is needed
 		/// </summary>
-		internal void HandleSizeChangedForLayoutInvalidation()
+		private void HandleSizeChangedForLayoutInvalidation()
 		{
 			var totalItems = GetTotalItemsCount();
 			var itemHeight = GetFirstVisibleItemHeight();
@@ -311,7 +311,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		/// <summary>
 		/// Event handler for ObservableItemsSource.SizeChanged
 		/// </summary>
-		void OnObservableItemsSourceSizeChanged(CoreGraphics.CGSize oldSize, CoreGraphics.CGSize newSize)
+		private void OnObservableItemsSourceSizeChanged(CoreGraphics.CGSize oldSize, CoreGraphics.CGSize newSize)
 		{
 			HandleSizeChangedForLayoutInvalidation();
 		}

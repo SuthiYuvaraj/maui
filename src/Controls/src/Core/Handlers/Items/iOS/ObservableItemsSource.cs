@@ -332,10 +332,14 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			if (sizeChanged)
 			{
-				// Size actually changed - notify with before/after sizes
 				SizeChanged?.Invoke(sizeBefore, sizeAfter);
 			}
-		
+			else if (args.Action == NotifyCollectionChangedAction.Add)
+			{
+				// iOS edge case: items added but size not yet updated
+				SizeChanged?.Invoke(sizeBefore, sizeBefore);
+			}
+
 		}
 
 		// Event to notify when CollectionView size changes
