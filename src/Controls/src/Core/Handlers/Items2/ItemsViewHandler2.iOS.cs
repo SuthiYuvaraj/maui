@@ -40,21 +40,23 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 	UICollectionViewLayout _layout;
 	ObservableItemsSource _observableItemsSource;
 
-	protected override void DisconnectHandler(UIView platformView)
-	{
-		ItemsView.ScrollToRequested -= ScrollToRequested;
-		
-		// Unsubscribe from SizeChanged event to prevent memory leaks
-		if (_observableItemsSource != null)
+		protected override void DisconnectHandler(UIView platformView)
 		{
-			_observableItemsSource.SizeChanged -= OnObservableItemsSourceSizeChanged;
-			_observableItemsSource = null;
-		}
-		
-		_layout = null;
-		Controller?.DisposeItemsSource();
-		base.DisconnectHandler(platformView);
-	}		protected override void ConnectHandler(UIView platformView)
+			ItemsView.ScrollToRequested -= ScrollToRequested;
+
+			// Unsubscribe from SizeChanged event to prevent memory leaks
+			if (_observableItemsSource != null)
+			{
+				_observableItemsSource.SizeChanged -= OnObservableItemsSourceSizeChanged;
+				_observableItemsSource = null;
+			}
+
+			_layout = null;
+			Controller?.DisposeItemsSource();
+			base.DisconnectHandler(platformView);
+
+		}	
+		protected override void ConnectHandler(UIView platformView)
 		{
 			base.ConnectHandler(platformView);
 			Controller.CollectionView.BackgroundColor = UIColor.Clear;
@@ -82,26 +84,27 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			return controllerView;
 		}
 
-	public static void MapItemsSource(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
-	{
-		MapItemsUpdatingScrollMode(handler, itemsView);
-		
-		// Unsubscribe from previous observable source if it exists
-		if (handler._observableItemsSource != null)
+		public static void MapItemsSource(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
 		{
-			handler._observableItemsSource.SizeChanged -= handler.OnObservableItemsSourceSizeChanged;
-			handler._observableItemsSource = null;
-		}
-		
-		handler.Controller?.UpdateItemsSource();
+			MapItemsUpdatingScrollMode(handler, itemsView);
 
-		// Subscribe to size changes from ObservableItemsSource
-		if (handler.Controller?.ItemsSource is ObservableItemsSource observableSource)
-		{
-			handler._observableItemsSource = observableSource;
-			handler._observableItemsSource.SizeChanged += handler.OnObservableItemsSourceSizeChanged;
-		}
-	}		public static void MapHorizontalScrollBarVisibility(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
+			// Unsubscribe from previous observable source if it exists
+			if (handler._observableItemsSource != null)
+			{
+				handler._observableItemsSource.SizeChanged -= handler.OnObservableItemsSourceSizeChanged;
+				handler._observableItemsSource = null;
+			}
+
+			handler.Controller?.UpdateItemsSource();
+
+			// Subscribe to size changes from ObservableItemsSource
+			if (handler.Controller?.ItemsSource is ObservableItemsSource observableSource)
+			{
+				handler._observableItemsSource = observableSource;
+				handler._observableItemsSource.SizeChanged += handler.OnObservableItemsSourceSizeChanged;
+			}
+		}	
+		public static void MapHorizontalScrollBarVisibility(ItemsViewHandler2<TItemsView> handler, ItemsView itemsView)
 		{
 			handler.Controller?.CollectionView?.UpdateHorizontalScrollBarVisibility(itemsView.HorizontalScrollBarVisibility);
 		}
@@ -220,7 +223,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 				);
 			}
-
 
 			// If contentSize comes back null, it means none of the content has been realized yet;
 			// we need to return the expansive size the collection view wants by default to get
