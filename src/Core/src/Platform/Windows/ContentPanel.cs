@@ -88,7 +88,7 @@ namespace Microsoft.Maui.Platform
 				return;
 			}
 
-			_borderPath.UpdatePath(_borderStroke?.Shape, width, height);
+			_borderPath.UpdatePath(_borderStroke?.Shape, width, height, skipDataUpdate:true);
 			UpdateClip(_borderStroke?.Shape, width, height);
 		}
 
@@ -149,7 +149,7 @@ namespace Microsoft.Maui.Platform
 				return;
 			}
 
-			_borderPath.UpdateBorderShape(strokeShape, ActualWidth, ActualHeight);
+			_borderPath.UpdateBorderShape(strokeShape, ActualWidth, ActualHeight, false);
 
 			var width = ActualWidth;
 			var height = ActualHeight;

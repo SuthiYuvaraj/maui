@@ -9,12 +9,14 @@ namespace Microsoft.Maui.Platform
 {
 	public static class BorderExtensions
 	{
-		public static void UpdateBorderShape(this Path borderPath, IShape? borderShape, double width, double height)
+#pragma warning disable RS0016 // Add public types and members to the declared API
+		public static void UpdateBorderShape(this Path borderPath, IShape? borderShape, double width, double height, bool skipDataUpdate= false)
+#pragma warning restore RS0016 // Add public types and members to the declared API
 		{
-			borderPath.UpdatePath(borderShape, width, height);
+			borderPath.UpdatePath(borderShape, width, height,  skipDataUpdate );
 		}
 
-		internal static void UpdatePath(this Path borderPath, IShape? borderShape, double width, double height)
+		internal static void UpdatePath(this Path borderPath, IShape? borderShape, double width, double height, bool skipDataUpdate = false)
 		{
 			if (borderShape is null || width <= 0 || height <= 0)
 				return;
@@ -26,8 +28,13 @@ namespace Microsoft.Maui.Platform
 
 			if (borderPath is not null)
 			{
-				borderPath.Data = geometry;
+				if (skipDataUpdate)
+				{
+					borderPath.Data = geometry;
+				}
+					
 				borderPath.RenderTransform = new TranslateTransform() { X = strokeThickness / 2, Y = strokeThickness / 2 };
+				
 			}
 		}
 
