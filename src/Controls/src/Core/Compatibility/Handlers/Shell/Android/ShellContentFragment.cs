@@ -167,6 +167,27 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (_shellPageContainer.LayoutParameters is CoordinatorLayout.LayoutParams layoutParams)
 				layoutParams.Behavior = new AppBarLayout.ScrollingViewBehavior();
 
+			// On API 28-29, explicitly dispatch insets after view setup
+			// This ensures pushed Shell pages receive proper window insets for SafeArea
+			if (!OperatingSystem.IsAndroidVersionAtLeast(30))
+			{
+				_root.Post(() =>
+				{
+					if (!_destroyed && _root.IsAttachedToWindow)
+					{
+						var rootWindowInsets = ViewCompat.GetRootWindowInsets(_root);
+						if (rootWindowInsets != null)
+						{
+							ViewCompat.DispatchApplyWindowInsets(_root, rootWindowInsets);
+						}
+						else
+						{
+							ViewCompat.RequestApplyInsets(_root);
+						}
+					}
+				});
+			}
+
 			return _root;
 		}
 
