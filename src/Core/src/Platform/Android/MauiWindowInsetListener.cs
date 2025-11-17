@@ -146,6 +146,24 @@ namespace Microsoft.Maui.Platform
 
 			listener.RegisterView(view);
 
+			// For API < 30, dispatch insets after view is attached to ensure AppBar padding is applied
+			if (!OperatingSystem.IsAndroidVersionAtLeast(30))
+			{
+				EventHandler<AView.ViewAttachedToWindowEventArgs>? attachHandler = null;
+				attachHandler = (s, e) =>
+				{
+					// Unsubscribe immediately to prevent memory leaks
+					view.ViewAttachedToWindow -= attachHandler;
+
+					var rootInsets = ViewCompat.GetRootWindowInsets(view);
+					if (rootInsets != null)
+					{
+						ViewCompat.DispatchApplyWindowInsets(view, rootInsets);
+					}
+				};
+				view.ViewAttachedToWindow += attachHandler;
+			}
+
 			return view;
 		}
 
