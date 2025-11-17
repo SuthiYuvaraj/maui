@@ -167,6 +167,33 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (_shellPageContainer.LayoutParameters is CoordinatorLayout.LayoutParams layoutParams)
 				layoutParams.Behavior = new AppBarLayout.ScrollingViewBehavior();
 
+			// For API < 30, dispatch insets after first layout pass completes
+			// This ensures AppBar has been measured and positioned before applying padding
+			// This is Shell-specific and should not be applied to regular NavigationPage
+			if (!OperatingSystem.IsAndroidVersionAtLeast(30))
+			{
+				var observer = _root.ViewTreeObserver;
+				if (observer is not null)
+				{
+					EventHandler globalLayoutHandler = delegate
+					{ };
+					globalLayoutHandler = (s, e) =>
+					{
+						if (_root?.ViewTreeObserver == null)
+							return;
+
+						_root.ViewTreeObserver.GlobalLayout -= globalLayoutHandler;
+
+						var rootInsets = ViewCompat.GetRootWindowInsets(_root);
+						if (rootInsets != null)
+						{
+							ViewCompat.DispatchApplyWindowInsets(_root, rootInsets);
+						}
+					};
+					observer.GlobalLayout += globalLayoutHandler;
+				}
+			}
+
 			return _root;
 		}
 
