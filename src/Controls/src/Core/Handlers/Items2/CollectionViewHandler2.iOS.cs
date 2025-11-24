@@ -83,8 +83,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			[StructuredItemsView.HeaderProperty.PropertyName] = MapHeaderTemplate,
 			[StructuredItemsView.FooterProperty.PropertyName] = MapFooterTemplate,
 			[GroupableItemsView.GroupHeaderTemplateProperty.PropertyName] = MapHeaderTemplate,
-			[GroupableItemsView.GroupFooterTemplateProperty.PropertyName] = MapFooterTemplate,
-			[Controls.ItemsView.ItemTemplateProperty.PropertyName] = MapItemTemplate,
+			[GroupableItemsView.GroupFooterTemplateProperty.PropertyName] = MapFooterTemplate
 		};
 	}
 
@@ -134,9 +133,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 		// Selectable
 		public static void MapItemsSource(CollectionViewHandler2 handler, SelectableItemsView itemsView)
 		{
-			// Clear cache when items source changes
-			handler._firstItemMeasuredSize = CoreGraphics.CGSize.Empty;
-
 			ItemsViewHandler2<ReorderableItemsView>.MapItemsSource(handler, itemsView);
 			MapSelectedItem(handler, itemsView);
 		}
@@ -227,21 +223,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 		public static void MapItemSizingStrategy(CollectionViewHandler2 handler, StructuredItemsView itemsView)
 		{
-			// Clear cache when sizing strategy changes
-			handler._firstItemMeasuredSize = CoreGraphics.CGSize.Empty;
-
 			handler.UpdateLayout();
-		}
-
-		internal static void MapItemTemplate(CollectionViewHandler2 handler, ItemsView itemsView)
-		{
-			// Clear the cached first item measured size when the item template changes. 
-			// A new template may have different layout, content, or styling that results in different dimensions.
-			// so we must invalidate the cache to ensure the first item with the new template gets measured properly.
-			handler._firstItemMeasuredSize = CoreGraphics.CGSize.Empty;
-
-			// Call the base implementation to handle the template change and update the collection view
-			ItemsViewHandler2<ReorderableItemsView>.MapItemTemplate(handler, itemsView);
 		}
 
 		void SubscribeToItemsLayoutPropertyChanged(IItemsLayout itemsLayout)
