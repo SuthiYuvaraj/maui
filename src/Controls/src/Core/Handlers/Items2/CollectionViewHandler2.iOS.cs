@@ -83,7 +83,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			[StructuredItemsView.HeaderProperty.PropertyName] = MapHeaderTemplate,
 			[StructuredItemsView.FooterProperty.PropertyName] = MapFooterTemplate,
 			[GroupableItemsView.GroupHeaderTemplateProperty.PropertyName] = MapHeaderTemplate,
-			[GroupableItemsView.GroupFooterTemplateProperty.PropertyName] = MapFooterTemplate
+			[GroupableItemsView.GroupFooterTemplateProperty.PropertyName] = MapFooterTemplate,
 		};
 	}
 
