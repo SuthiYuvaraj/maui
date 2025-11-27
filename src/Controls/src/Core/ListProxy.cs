@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Dispatching;
 
@@ -114,7 +115,20 @@ namespace Microsoft.Maui.Controls
 			get
 			{
 				if (_collection != null)
+				{
+					// Access the collection count with synchronization if available
+					CollectionSynchronizationContext sync;
+					if (BindingBase.TryGetSynchronizedCollection(ProxiedEnumerable, out sync))
+					{
+						int count = 0;
+						sync.Callback(ProxiedEnumerable, sync.Context, () =>
+						{
+							count = _collection.Count;
+						}, false);
+						return count;
+					}
 					return _collection.Count;
+				}
 
 				EnsureWindowCreated();
 
@@ -197,6 +211,23 @@ namespace Microsoft.Maui.Controls
 
 		void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
 		{
+			CollectionSynchronizationContext sync;
+			if (BindingBase.TryGetSynchronizedCollection(ProxiedEnumerable, out sync))
+			{
+				// Execute everything inside the synchronization context to ensure thread-safe access
+				sync.Callback(ProxiedEnumerable, sync.Context, () =>
+				{
+					ProcessCollectionChanged(e);
+				}, false);
+			}
+			else
+			{
+				ProcessCollectionChanged(e);
+			}
+		}
+
+		void ProcessCollectionChanged(NotifyCollectionChangedEventArgs e)
+		{
 			Action action;
 			if (_list == null)
 			{
@@ -204,6 +235,8 @@ namespace Microsoft.Maui.Controls
 			}
 			else
 			{
+				// Capture the count while we're in the sync context (if any)
+				e = e.WithCount(Count);
 				action = () =>
 				{
 					_version++;
@@ -211,20 +244,10 @@ namespace Microsoft.Maui.Controls
 				};
 			}
 
-			CollectionSynchronizationContext sync;
-			if (BindingBase.TryGetSynchronizedCollection(ProxiedEnumerable, out sync))
-			{
-				sync.Callback(ProxiedEnumerable, sync.Context, () =>
-				{
-					e = e.WithCount(Count);
-					_dispatcher.DispatchIfRequired(action);
-				}, false);
-			}
+			if (_dispatcher != null && _dispatcher.IsDispatchRequired)
+				_dispatcher.Dispatch(action);
 			else
-			{
-				e = e.WithCount(Count);
-				_dispatcher.DispatchIfRequired(action);
-			}
+				action();
 		}
 
 		void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
@@ -270,8 +293,21 @@ namespace Microsoft.Maui.Controls
 				return inRange;
 			}
 
-			if (_collection != null && index >= _collection.Count)
-				return false;
+			if (_collection != null)
+			{
+				// Check count with synchronization if available
+				int collectionCount = 0;
+				Action getCount = () => collectionCount = _collection.Count;
+
+				if (syncContext != null)
+					syncContext.Callback(ProxiedEnumerable, syncContext.Context, getCount, false);
+				else
+					getCount();
+
+				if (index >= collectionCount)
+					return false;
+			}
+
 			if (_items != null)
 			{
 				bool found = _items.TryGetValue(index, out value);
