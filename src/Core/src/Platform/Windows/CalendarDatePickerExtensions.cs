@@ -16,15 +16,20 @@ namespace Microsoft.Maui.Platform
 				return string.Empty;
 
 			// Handle standard .NET DateTime format strings (single characters)
-			// by resolving them to culture-specific patterns first
 			if (dateFormat.Length == 1)
 			{
-				string resolvedPattern = GetResolvedPatternForStandardFormat(dateFormat);
-				if (string.IsNullOrEmpty(resolvedPattern))
+				string resolvedFormat = GetResolvedPatternForStandardFormat(dateFormat);
+
+				// If the format returns a direct WinUI format (starts with '{'), return it as-is
+				if (!string.IsNullOrEmpty(resolvedFormat) && resolvedFormat.StartsWith("{"))
+					return resolvedFormat;
+
+				// If empty, use default
+				if (string.IsNullOrEmpty(resolvedFormat))
 					return string.Empty;
 
 				// Convert the resolved .NET pattern to WinUI DateTimeFormatter format
-				dateFormat = resolvedPattern;
+				dateFormat = resolvedFormat;
 			}
 
 			// Handle custom format strings (or resolved standard formats)
@@ -49,12 +54,14 @@ namespace Microsoft.Maui.Platform
 
 		internal static string GetResolvedPatternForStandardFormat(string standardFormat)
 		{
-			// Get culture-specific pattern for the standard format
-			// This respects the user's culture settings and is maintainable
+			// Get culture-specific pattern for the standard format where appropriate.
+			// For formats that naturally return date-only patterns, use built-in DateTimeFormatInfo.
+			// For formats that include time components, manually construct WinUI format strings.
 			var dtfi = CultureInfo.CurrentCulture.DateTimeFormat;
 
 			switch (standardFormat)
 			{
+				// Use built-in patterns for date-only formats
 				case "d": // Short date pattern
 					return dtfi.ShortDatePattern;
 				case "D": // Long date pattern
@@ -66,22 +73,23 @@ namespace Microsoft.Maui.Platform
 				case "y": // Year/month pattern
 					return dtfi.YearMonthPattern;
 
-				// The following formats include time components in their built-in patterns.
-				// For DatePicker (date-only), manually extract only the date portion.
-				case "f": // Full date/time (short time) - Extract date part only
-					return ExtractDatePart(dtfi.FullDateTimePattern);
-				case "F": // Full date/time (long time) - Extract date part only
-					return ExtractDatePart(dtfi.FullDateTimePattern);
-				case "g": // General date/time (short time) - Extract date part only
-					return ExtractDatePart(dtfi.ShortDatePattern + " " + dtfi.ShortTimePattern);
-				case "G": // General date/time (long time) - Extract date part only
-					return ExtractDatePart(dtfi.ShortDatePattern + " " + dtfi.LongTimePattern);
-				case "U": // Universal full date/time - Extract date part only
-					return ExtractDatePart(dtfi.FullDateTimePattern);
+				// Manually construct WinUI format strings for formats that would include time
+				// These return WinUI format directly (not .NET patterns) to avoid time components
+				case "f": // Full date/time (short time) - return long date WinUI format
+					return "{dayofweek.full} {month.full} {day.integer}, {year.full}";
+				case "F": // Full date/time (long time) - return long date WinUI format
+					return "{dayofweek.full} {month.full} {day.integer}, {year.full}";
+				case "g": // General date/time (short time) - return short date WinUI format
+					return "{month.integer}/{day.integer}/{year.full}";
+				case "G": // General date/time (long time) - return short date WinUI format
+					return "{month.integer}/{day.integer}/{year.full}";
+				case "U": // Universal full date/time - return long date WinUI format
+					return "{dayofweek.full} {month.full} {day.integer}, {year.full}";
+				case "R": // RFC1123 pattern - return long date WinUI format
+				case "r":
+					return "{dayofweek.full} {month.full} {day.integer}, {year.full}";
 
 				// The following formats are not suitable for date-only picker, use default
-				case "r":
-				case "R": // RFC1123 pattern - invariant culture format
 				case "s": // Sortable date/time pattern - invariant culture
 				case "u": // Universal sortable pattern - invariant culture
 				case "o":
@@ -94,39 +102,6 @@ namespace Microsoft.Maui.Platform
 			}
 		}
 
-		internal static string ExtractDatePart(string dateTimePattern)
-		{
-			// Extract the date portion from a date-time pattern by removing time components
-			// Time components typically include: h, H, m, s, t, f, F and their variations
-			// We'll split by common separators and keep only date-related parts
-
-			if (string.IsNullOrEmpty(dateTimePattern))
-				return string.Empty;
-
-			// Find the first occurrence of time-related patterns
-			// Common time separators/indicators: space before time, or 'T' separator
-			var parts = dateTimePattern.Split(new[] { ' ' }, 2);
-
-			if (parts.Length > 1)
-			{
-				// Check if the first part contains date components (d, M, y)
-				var firstPart = parts[0];
-				if (ContainsDateComponents(firstPart))
-					return firstPart;
-			}
-
-			// If no clear separation, return the full pattern
-			// The conversion logic will handle it
-			return dateTimePattern;
-		}
-
-		internal static bool ContainsDateComponents(string pattern)
-		{
-			// Check if the pattern contains typical date components
-			return pattern.Contains('d', StringComparison.OrdinalIgnoreCase) ||
-				   pattern.Contains('M') ||
-				   pattern.Contains('y', StringComparison.OrdinalIgnoreCase);
-		}
 		internal static string GetSeparator(string format)
 		{
 			string separator;
