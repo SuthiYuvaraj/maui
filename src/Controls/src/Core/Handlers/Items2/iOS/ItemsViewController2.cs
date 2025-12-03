@@ -294,14 +294,39 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 			if (IsHorizontal)
 			{
-				CollectionView?.UpdateFlowDirection(ItemsView);
+				// Set semantic content attribute directly on CollectionView only (not on cells)
+				// This mirrors the scroll direction and directional layout metrics
+				switch (ItemsView.FlowDirection)
+				{
+					case FlowDirection.RightToLeft:
+						CollectionView.SemanticContentAttribute = UISemanticContentAttribute.ForceRightToLeft;
+						break;
+					case FlowDirection.LeftToRight:
+						CollectionView.SemanticContentAttribute = UISemanticContentAttribute.ForceLeftToRight;
+						break;
+					case FlowDirection.MatchParent:
+						if (ItemsView.Handler?.PlatformView is UIView view && view.Superview != null)
+						{
+							CollectionView.SemanticContentAttribute = view.Superview.SemanticContentAttribute;
+						}
+						break;
+				}
+
+				// CRITICAL: Re-apply the layout to recalculate directional metrics
+				// UICollectionViewCompositionalLayout uses directional APIs (leading/trailing) that
+				// automatically mirror based on semanticContentAttribute, but only when layout is applied
+				var currentLayout = CollectionView.CollectionViewLayout;
+				CollectionView.SetCollectionViewLayout(currentLayout, true);
+
+				// Reload data to ensure cells reflect the new direction
+				CollectionView.ReloadData();
 			}
 			else
 			{
 				if (ItemsView.Handler.PlatformView is UIView itemsView)
 				{
 					itemsView.UpdateFlowDirection(ItemsView);
-					
+
 					if (ItemsView.ItemTemplate is not null)
 					{
 						foreach (var child in ItemsView.LogicalChildrenInternal)
