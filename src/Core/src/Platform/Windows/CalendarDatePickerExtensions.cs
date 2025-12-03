@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 
 namespace Microsoft.Maui.Platform
@@ -15,11 +16,18 @@ namespace Microsoft.Maui.Platform
 				return string.Empty;
 
 			// Handle standard .NET DateTime format strings (single characters)
+			// by resolving them to culture-specific patterns first
 			if (dateFormat.Length == 1)
 			{
-				return ConvertStandardFormat(dateFormat);
+				string resolvedPattern = GetResolvedPatternForStandardFormat(dateFormat);
+				if (string.IsNullOrEmpty(resolvedPattern))
+					return string.Empty;
+
+				// Convert the resolved .NET pattern to WinUI DateTimeFormatter format
+				dateFormat = resolvedPattern;
 			}
 
+			// Handle custom format strings (or resolved standard formats)
 			string result = string.Empty;
 			string separator = GetSeparator(dateFormat);
 
@@ -39,48 +47,86 @@ namespace Microsoft.Maui.Platform
 			return result;
 		}
 
-		internal static string ConvertStandardFormat(string format)
+		internal static string GetResolvedPatternForStandardFormat(string standardFormat)
 		{
-			switch (format)
-			{
-				case "D": // Long date pattern
-					return "{dayofweek.full} {month.full} {day.integer} {year.full}";
-				case "m":
-				case "M": // Month day pattern
-					return "{month.full} {day.integer}";
-				case "y":
-				case "Y": // Year month pattern - .NET shows "2023 December"
-					return "{year.full} {month.full}";
-				case "f": // Full date/time pattern (short time) - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}";
-				case "F": // Full date/time pattern (long time) - include seconds as per .NET standard
-					return "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
-				case "g": // General date/time pattern (short time) - use short date since time is not applicable  
-					return "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)} {period.abbreviated}"; // Let it fall back to default short date
-				case "G": // General date/time pattern (long time) - use short date since time is not applicable
-					return "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}"; // Let it fall back to default short date
-				case "u":
-					return "{year.full}-{month.integer(2)}-{day.integer(2)} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}Z";
-				case "U": // Universal full date/time pattern - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}";
-				case "o":
-				case "O": // Round-trip date/time pattern - use ISO 8601 format
-					return "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(7)}"; // Let it fall back to default short date
-				case "r":
-				case "R": // RFC1123 pattern - use abbreviated format as close approximation
-					return "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT";
-				case "s": // Sortable date/time pattern - use numeric format
-					return "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}";
-				default:
+			// Get culture-specific pattern for the standard format
+			// This respects the user's culture settings and is maintainable
+			var dtfi = CultureInfo.CurrentCulture.DateTimeFormat;
 
-					// For other standard formats (o, O, u) that can't be reasonably mapped to date-only patterns,
-					// return empty string so that they use the default format
+			switch (standardFormat)
+			{
+				case "d": // Short date pattern
+					return dtfi.ShortDatePattern;
+				case "D": // Long date pattern
+					return dtfi.LongDatePattern;
+				case "M":
+				case "m": // Month/day pattern
+					return dtfi.MonthDayPattern;
+				case "Y":
+				case "y": // Year/month pattern
+					return dtfi.YearMonthPattern;
+
+				// The following formats include time components in their built-in patterns.
+				// For DatePicker (date-only), manually extract only the date portion.
+				case "f": // Full date/time (short time) - Extract date part only
+					return ExtractDatePart(dtfi.FullDateTimePattern);
+				case "F": // Full date/time (long time) - Extract date part only
+					return ExtractDatePart(dtfi.FullDateTimePattern);
+				case "g": // General date/time (short time) - Extract date part only
+					return ExtractDatePart(dtfi.ShortDatePattern + " " + dtfi.ShortTimePattern);
+				case "G": // General date/time (long time) - Extract date part only
+					return ExtractDatePart(dtfi.ShortDatePattern + " " + dtfi.LongTimePattern);
+				case "U": // Universal full date/time - Extract date part only
+					return ExtractDatePart(dtfi.FullDateTimePattern);
+
+				// The following formats are not suitable for date-only picker, use default
+				case "r":
+				case "R": // RFC1123 pattern - invariant culture format
+				case "s": // Sortable date/time pattern - invariant culture
+				case "u": // Universal sortable pattern - invariant culture
+				case "o":
+				case "O": // Round-trip date/time pattern - not suitable
 					return string.Empty;
 
+				default:
+					// For unrecognized formats, return empty string to use the default format
+					return string.Empty;
 			}
-
 		}
 
+		internal static string ExtractDatePart(string dateTimePattern)
+		{
+			// Extract the date portion from a date-time pattern by removing time components
+			// Time components typically include: h, H, m, s, t, f, F and their variations
+			// We'll split by common separators and keep only date-related parts
+
+			if (string.IsNullOrEmpty(dateTimePattern))
+				return string.Empty;
+
+			// Find the first occurrence of time-related patterns
+			// Common time separators/indicators: space before time, or 'T' separator
+			var parts = dateTimePattern.Split(new[] { ' ' }, 2);
+
+			if (parts.Length > 1)
+			{
+				// Check if the first part contains date components (d, M, y)
+				var firstPart = parts[0];
+				if (ContainsDateComponents(firstPart))
+					return firstPart;
+			}
+
+			// If no clear separation, return the full pattern
+			// The conversion logic will handle it
+			return dateTimePattern;
+		}
+
+		internal static bool ContainsDateComponents(string pattern)
+		{
+			// Check if the pattern contains typical date components
+			return pattern.Contains('d', StringComparison.OrdinalIgnoreCase) ||
+				   pattern.Contains('M') ||
+				   pattern.Contains('y', StringComparison.OrdinalIgnoreCase);
+		}
 		internal static string GetSeparator(string format)
 		{
 			string separator;
