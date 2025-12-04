@@ -94,6 +94,7 @@ namespace Microsoft.Maui.Platform
 					return string.Empty;
 			}
 		}
+
 		internal static string GetSeparator(string format)
 		{
 			string separator;

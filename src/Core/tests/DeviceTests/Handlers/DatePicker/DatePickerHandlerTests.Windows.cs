@@ -59,6 +59,7 @@ namespace Microsoft.Maui.DeviceTests
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
+
 		[Theory(DisplayName = "Supported Standard Format Strings Initialize Correctly")]
 		[InlineData("d")] // Short date pattern - uses built-in pattern with normal conversion
 		[InlineData("D")] // Long date pattern - uses built-in pattern with normal conversion
@@ -102,6 +103,7 @@ namespace Microsoft.Maui.DeviceTests
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
+
 		CalendarDatePicker GetNativeDatePicker(DatePickerHandler datePickerHandler) =>
 			datePickerHandler.PlatformView;
 
