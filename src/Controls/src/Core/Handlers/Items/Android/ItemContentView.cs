@@ -2,8 +2,12 @@
 using System;
 using Android.Content;
 using Android.Views;
+using Android.Widget;
 using Microsoft.Maui.Graphics;
+using AndroidX.Core.Widget;
+using AndroidX.RecyclerView.Widget;
 using AView = Android.Views.View;
+using AScrollView = Android.Widget.ScrollView;
 
 namespace Microsoft.Maui.Controls.Handlers.Items
 {
@@ -35,6 +39,132 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			get => _retrieveStaticSize?.Target as Func<Size?>;
 			set => _retrieveStaticSize = new WeakReference(value);
+		}
+
+		public override bool DispatchTouchEvent(MotionEvent e)
+		{
+			//For header/footer content, we need to check if there's a scrollable child
+			//and let it handle the touch events properly
+			if (IsHeaderOrFooterContent() && ContainsScrollableChild())
+			{
+				// On touch up/cancel, allow parent to intercept again
+				if (e.Action == MotionEventActions.Up || e.Action == MotionEventActions.Cancel)
+				{
+					Parent?.RequestDisallowInterceptTouchEvent(false);
+				}
+			}
+
+			return base.DispatchTouchEvent(e);
+		}
+
+		public override bool OnInterceptTouchEvent(MotionEvent ev)
+		{
+			//For header/footer content with scrollable children, don't intercept on touch down
+			//This allows the scrollable child to receive the touch events
+			if (IsHeaderOrFooterContent() && ev.Action == MotionEventActions.Down)
+			{
+				if (ContainsScrollableChild())
+				{
+					// Request parent not to intercept so scrollable child can handle it
+					Parent?.RequestDisallowInterceptTouchEvent(true);
+					return false;
+				}
+			}
+
+			return base.OnInterceptTouchEvent(ev);
+		}
+
+		/// <summary>
+		/// Checks if this ItemContentView contains any scrollable children that need touch events
+		/// </summary>
+		bool ContainsScrollableChild()
+		{
+			if (PlatformView == null)
+				return false;
+
+			// Check if the platform view itself or any of its children are scrollable
+			return IsScrollableView(PlatformView);
+		}
+
+		/// <summary>
+		/// Recursively checks if a view or its children are scrollable
+		/// </summary>
+		bool IsScrollableView(AView view)
+		{
+			if (view == null)
+				return false;
+
+			// Check for common scrollable view types
+			if (view is NestedScrollView ||
+				view is RecyclerView ||
+				view is AbsListView ||
+				view is AScrollView)
+			{
+				return true;
+			}
+
+			// Check if view can scroll (has scrollable content)
+			if (view.CanScrollVertically(1) || view.CanScrollVertically(-1) ||
+				view.CanScrollHorizontally(1) || view.CanScrollHorizontally(-1))
+			{
+				return true;
+			}
+
+			// Recursively check children
+			if (view is ViewGroup viewGroup)
+			{
+				for (int i = 0; i < viewGroup.ChildCount; i++)
+				{
+					var child = viewGroup.GetChildAt(i);
+					if (IsScrollableView(child))
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Determines if this ItemContentView is being used for header or footer content
+		/// by checking if the contained View is the same as the ItemsView's Header or Footer
+		/// </summary>
+		bool IsHeaderOrFooterContent()
+		{
+			if (View == null)
+			{
+				return false;
+			}
+
+			// Find the parent ItemsView by traversing up the view hierarchy
+			var itemsView = FindParentItemsView();
+			if (itemsView is StructuredItemsView structuredItemsView)
+			{
+				// Check if our View is the same object reference as the header or footer
+				return ReferenceEquals(View, structuredItemsView.Header) ||
+					ReferenceEquals(View, structuredItemsView.Footer);
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Finds the parent StructuredItemsView by traversing the logical parent chain
+		/// </summary>
+		StructuredItemsView FindParentItemsView()
+		{
+			var current = View?.Parent;
+			while (current != null)
+			{
+				if (current is StructuredItemsView itemsView)
+				{
+					return itemsView;
+				}
+
+				current = current.Parent;
+			}
+			return null;
 		}
 
 		internal void RealizeContent(View view, ItemsView itemsView)
