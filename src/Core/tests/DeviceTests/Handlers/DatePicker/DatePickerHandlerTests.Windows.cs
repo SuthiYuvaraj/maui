@@ -59,54 +59,48 @@ namespace Microsoft.Maui.DeviceTests
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
-		[Theory(DisplayName = "Standard Format Strings Initialize Correctly")]
-		[InlineData("d")] // Short date pattern (culture-specific)
-		[InlineData("D")] // Long date pattern (culture-specific)
-		[InlineData("f")] // Full date/time (short time) - extracts date part only
-		[InlineData("F")] // Full date/time (long time) - extracts date part only
-		[InlineData("m")] // Month/day pattern
-		[InlineData("M")] // Month/day pattern
-		[InlineData("y")] // Year/month pattern
-		[InlineData("Y")] // Year/month pattern
-		[InlineData("g")] // General date/time (short time) - extracts date part only
-		[InlineData("G")] // General date/time (long time) - extracts date part only
-		[InlineData("U")] // Universal full - extracts date part only
-		public async Task StandardFormatInitializesCorrectly(string format)
+		[Theory(DisplayName = "Supported Standard Format Strings Initialize Correctly")]
+		[InlineData("d")] // Short date pattern - uses built-in pattern with normal conversion
+		[InlineData("D")] // Long date pattern - uses built-in pattern with normal conversion
+		[InlineData("m")] // Month/day pattern - uses built-in pattern with normal conversion
+		[InlineData("M")] // Month/day pattern - uses built-in pattern with normal conversion
+		[InlineData("y")] // Year/month pattern - uses built-in pattern with normal conversion
+		[InlineData("Y")] // Year/month pattern - uses built-in pattern with normal conversion
+		public async Task SupportedStandardFormatInitializesCorrectly(string format)
 		{
-			var datePicker = new DatePickerStub
-			{
-				Date = new DateTime(2025, 12, 25),
-				MinimumDate = DateTime.Today.AddDays(-1),
-				MaximumDate = DateTime.Today.AddDays(1),
-				Format = format
-			};
+			var datePicker = new DatePickerStub();
 
-			// Get the expected native format by resolving the standard format through DateTimeFormatInfo
-			// and converting it to WinUI format
+			datePicker.Date = new DateTime(2025, 12, 25);
+			datePicker.MinimumDate = DateTime.Today.AddDays(-1);
+			datePicker.MaximumDate = DateTime.Today.AddDays(1);
+			datePicker.Format = format;
+
+			// Get the expected native format by converting through the normal flow
 			var expectedNativeFormat = format.ToDateFormat();
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, expectedNativeFormat);
 		}
 
-		[Theory(DisplayName = "Standard Format Strings That Use Default Initialize Correctly")]
-		[InlineData("r")] // RFC1123 - not suitable for date picker, uses default
-		[InlineData("R")] // RFC1123 - not suitable for date picker, uses default
-		[InlineData("s")] // Sortable - invariant culture, uses default
-		[InlineData("u")] // Universal sortable - invariant culture, uses default
-		[InlineData("o")] // Round-trip - not suitable for date picker, uses default
-		[InlineData("O")] // Round-trip - not suitable for date picker, uses default
-		public async Task StandardFormatDefaultInitializesCorrectly(string format)
+		[Theory(DisplayName = "Unsupported Standard Format Strings Initialize Correctly")]
+		[InlineData("f", "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}")]
+		[InlineData("F", "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")]
+		[InlineData("r", "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")]
+		[InlineData("R", "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")]
+		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}")]
+		[InlineData("U", "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}")]
+		[InlineData("g", "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)} {period.abbreviated}")]
+		[InlineData("G", "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")]
+		public async Task UnsupportedStandardFormatInitializesCorrectly(string format, string nativeFormat)
 		{
-			var datePicker = new DatePickerStub
-			{
-				Date = DateTime.Today,
-				MinimumDate = DateTime.Today.AddDays(-1),
-				MaximumDate = DateTime.Today.AddDays(1),
-				Format = format
-			};
+			var datePicker = new DatePickerStub();
 
-			// These formats return empty string and use the default platform format
-			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, string.Empty);
+			datePicker.Date = new DateTime(2025, 12, 25);
+			datePicker.MinimumDate = DateTime.Today.AddDays(-1);
+			datePicker.MaximumDate = DateTime.Today.AddDays(1);
+			// Use a specific date to ensure consistent results
+			datePicker.Format = format;
+
+			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
 		CalendarDatePicker GetNativeDatePicker(DatePickerHandler datePickerHandler) =>
 			datePickerHandler.PlatformView;
