@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.Issues.Issue33000"
+             Title="Issue 33000">
+
+       <VerticalStackLayout Padding="20"
+                     Spacing="15">
+              <Label Text="Issue 33000: Email.ComposeAsync - Spark app should receive body and subject"
+                     FontSize="16"
+                     FontAttributes="Bold"
+                     Margin="0,0,0,10"/>
+
+              <Label Text="This test verifies that email composition works correctly with Spark and other email apps on Android."
+                     FontSize="12"
+                     TextColor="Gray"
+                     Margin="0,0,0,20"/>
+
+              <!-- Test 1: Email with Subject and Body -->
+              <Button Text="Compose Email (Subject + Body)"
+                      Clicked="OnComposeBasicEmail"
+                      AutomationId="ComposeBasicEmailButton"
+                      Margin="0,0,0,5"/>
+
+              <!-- Test 2: Email with To, Subject, Body -->
+              <Button Text="Compose Email (To + Subject + Body)"
+                      Clicked="OnComposeFullEmail"
+                      AutomationId="ComposeFullEmailButton"
+                      Margin="0,0,0,5"/>
+
+              <!-- Test 3: Email with HTML Body -->
+              <Button Text="Compose Email (HTML Body)"
+                      Clicked="OnComposeHtmlEmail"
+                      AutomationId="ComposeHtmlEmailButton"
+                      Margin="0,0,0,5"/>
+
+              <!-- Test 4: Email with Cc/Bcc -->
+              <Button Text="Compose Email (With Cc/Bcc)"
+                      Clicked="OnComposeEmailWithCcBcc"
+                      AutomationId="ComposeEmailWithCcBccButton"
+                      Margin="0,0,0,20"/>
+
+              <!-- Status Label -->
+              <Label x:Name="StatusLabel"
+                     Text="Tap a button to test email composition"
+                     AutomationId="StatusLabel"
+                     FontSize="14"
+                     HorizontalOptions="Center"
+                     TextColor="Blue"/>
+       </VerticalStackLayout>
+</ContentPage>
