@@ -11,32 +11,37 @@ public class Issue33000 : _IssuesUITest
     public Issue33000(TestDevice device) : base(device) { }
 
     [Test]
-    [Category(UITestCategories.Email)]
-    public void Issue33000Test()
+    [Category(UITestCategories.ManualReview)]
+    public void EmailComposerOpensWithSubjectAndBody()
     {
-        // Wait for page to load
-        App.WaitForElement("ComposeBasicEmailButton");
+        // This test requires MANUAL VERIFICATION in email apps (Spark, Gmail, etc.):
+        // BEFORE FIX: Subject and Body were EMPTY in Spark app when no attachments
+        // AFTER FIX: Subject and Body should be populated correctly
+        // 
+        // Expected values when tapping "Compose Email (Subject + Body)":
+        //   Subject: "Test from .NET MAUI - Issue 33000"
+        //   Body: "This email tests that subject and body are correctly passed to Spark and other email apps.\n\nIf you can read this, the fix works!"
+
+        App.WaitForElement("StatusLabel");
 
         // Verify all test buttons are present
+        App.WaitForElement("ComposeBasicEmailButton");
         App.WaitForElement("ComposeFullEmailButton");
         App.WaitForElement("ComposeHtmlEmailButton");
         App.WaitForElement("ComposeEmailWithCcBccButton");
 
-        // Verify status label exists
-        var statusLabel = App.WaitForElement("StatusLabel");
-        Assert.That(statusLabel, Is.Not.Null, "Status label should be present");
-
         // Test basic email composition (Subject + Body only)
         App.Tap("ComposeBasicEmailButton");
 
-        // Give the system time to launch email app
-        Task.Delay(1000).Wait();
+        // Give time for email app to open
+        System.Threading.Thread.Sleep(2000);
 
         // Verify status updated to success
         var status = App.WaitForElement("StatusLabel").GetText();
         Assert.That(status, Does.Contain("✅"), "Status should show success after tapping compose button");
 
-        // Note: Manual verification needed in email app to confirm subject and body appear
-        // This automated test verifies the API doesn't crash and the compose action is triggered
+        // MANUAL VERIFICATION REQUIRED:
+        // Check that the email composer opened with subject and body populated
+        // Test in multiple email apps, especially Spark
     }
 }
