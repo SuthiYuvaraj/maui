@@ -32,16 +32,9 @@ public class Issue33000 : _IssuesUITest
 
         // Test basic email composition (Subject + Body only)
         App.Tap("ComposeBasicEmailButton");
-
-        // Give time for email app to open
-        System.Threading.Thread.Sleep(2000);
-
-        // Verify status updated to success
-        var status = App.WaitForElement("StatusLabel").GetText();
-        Assert.That(status, Does.Contain("✅"), "Status should show success after tapping compose button");
-
         // MANUAL VERIFICATION REQUIRED:
         // Check that the email composer opened with subject and body populated
         // Test in multiple email apps, especially Spark
+        VerifyScreenshot();
     }
 }
