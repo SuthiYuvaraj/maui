@@ -649,7 +649,8 @@ namespace Microsoft.Maui.Controls.Compatibility.Platform.iOS
 		{
 			ShiftContentArray(shiftCells);
 
-			collectionView.ReloadData();
+			// Don't call ReloadData here as it disrupts ItemsUpdatingScrollMode.KeepScrollOffset
+			// The CollectionView will update naturally through the normal update mechanisms
 		}
 
 		int GetCorrectedIndex(int indexToCorrect)
