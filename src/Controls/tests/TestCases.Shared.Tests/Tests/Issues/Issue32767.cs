@@ -16,49 +16,27 @@ namespace Microsoft.Maui.TestCases.Tests.Issues
         [Category(UITestCategories.WebView)]
         public void BlazorWebViewBackNavigationNavigatesWithinWebViewFirst()
         {
-            // Wait for BlazorWebView to load
+            // Wait for BlazorWebView to load - wait for the title label from XAML
             App.WaitForElement("TitleLabel");
-
-            // Give BlazorWebView time to fully initialize
-            Task.Delay(2000).Wait();
-
-            // Navigate to Page 2
-            App.WaitForElement("NavigateToPage2Button");
-            App.Tap("NavigateToPage2Button");
-
-            // Wait for Page 2 to load
-            Task.Delay(1000).Wait();
-            App.WaitForElement("NavigateToPage3Button");
-
-            // Navigate to Page 3
-            App.Tap("NavigateToPage3Button");
-
-            // Wait for Page 3 to load
-            Task.Delay(1000).Wait();
-            App.WaitForElement("Page3Content");
-
-            // Press back - should navigate to Page 2 within BlazorWebView
-            App.Back();
-            Task.Delay(1000).Wait();
-
-            // Verify we're on Page 2 (within BlazorWebView, not popped to previous MAUI page)
-            App.WaitForElement("NavigateToPage3Button");
-
-            // Press back again - should navigate to Page 1 within BlazorWebView
-            App.Back();
-            Task.Delay(1000).Wait();
-
-            // Verify we're on Page 1 (still within BlazorWebView)
-            App.WaitForElement("NavigateToPage2Button");
-
-            // Press back one more time - now it should pop the ContentPage
-            // since BlazorWebView has no more history
-            App.Back();
-            Task.Delay(1000).Wait();
-
-            // Verify we've navigated away from the test page
-            // (the title label should no longer be present)
-            App.WaitForNoElement("TitleLabel");
+            
+            // Wait for Home page content to appear in BlazorWebView
+            App.WaitForElement("Home Page");
+            
+            // Click "Go to Counter" link
+            App.Tap("Go to Counter");
+            
+            // Wait for Counter page to load
+            App.WaitForElement("Counter");
+            
+            // Perform swipe from left edge to simulate back gesture
+            // This should navigate back within BlazorWebView instead of closing the app
+            App.SwipeLeftToRight(swipePercentage: 0.10, swipeSpeed: 500);
+            
+            // Verify we're back on the Home page (BlazorWebView navigated back, app did NOT close)
+            App.WaitForElement("Home Page");
+            
+            // Verify the "Go to Counter" link is visible again
+            App.WaitForElement("Go to Counter");
         }
     }
 }

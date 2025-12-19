@@ -1,53 +1,9 @@
 ﻿@page "/"
-@namespace Controls.TestCases.HostApp.Issues.Issue32767Components
-@using Microsoft.JSInterop
 
-<h1>Hello, world!</h1>
+<h1 id="Issue32767HomePage">Home Page</h1>
 
-<p>Welcome to your new app.</p>
+<p>Welcome to the BlazorWebView Back Navigation Test.</p>
 
-<h2>This is the count in the main app: @count</h2>
-<button @onclick="Increment">Increment</button>
-<button @onclick="Decrement">Decrement</button>
-<button @onclick="SetValue">Set Value</button>
-
-@inject IJSRuntime JSRuntime
-
-@code {
-    int count = 0;
-
-    void Increment()
-    {
-        count++;
-    }
-
-    async Task Decrement()
-    {
-        if (await ConfirmDecrement())
-        {
-            count--;
-        }
-    }
-
-    async Task<bool> ConfirmDecrement()
-    {
-        return await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to decrement?");
-    }
-
-    async Task SetValue()
-    {
-        var userResponse = await JSRuntime.InvokeAsync<string>("prompt", "Enter a new value for count:", count.ToString());
-        if (userResponse is null)
-        {
-            await JSRuntime.InvokeVoidAsync("alert", "No value entered, count remains unchanged.");
-        }
-        else if (!int.TryParse(userResponse, out var newCount))
-        {
-            await JSRuntime.InvokeVoidAsync("alert", "Invalid input, please enter a valid number.");
-        }
-        else
-        {
-            count = newCount;
-        }
-    }
-}
+<p>
+    <a href="counter" id="Issue32767GoToCounterLink">Go to Counter</a>
+</p>

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Maui.Controls.Sample.Issues.Issue32767"
              xmlns:local="clr-namespace:Controls.TestCases.HostApp.Issues.Issue32767Components"
+             AutomationId="Issue32767HomePage"
              Title="Issue32767">
     <Grid>
         <Grid.RowDefinitions>
@@ -19,6 +20,7 @@
         <BlazorWebView
             x:Name="bwv"
             Grid.Row="1"
+            BlazorWebViewInitialized="OnBlazorWebViewInitialized"
             HostPage="wwwroot/index.html">
             <BlazorWebView.RootComponents>
                 <RootComponent Selector="#app"
