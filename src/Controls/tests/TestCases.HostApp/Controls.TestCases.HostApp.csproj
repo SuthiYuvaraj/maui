@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <TargetFrameworks>$(MauiSamplePlatforms)</TargetFrameworks>
@@ -8,9 +8,13 @@
     <MauiTestProject>true</MauiTestProject>
     <IsPackable>false</IsPackable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultRazorComponentItems>true</EnableDefaultRazorComponentItems>
+    <RazorLangVersion>Latest</RazorLangVersion>
     <!-- Disable multi-RID builds to workaround a parallel build issue -->
     <RuntimeIdentifiers Condition="$(TargetFramework.Contains('-maccatalyst'))">maccatalyst-x64</RuntimeIdentifiers>
     <RuntimeIdentifiers Condition="$(TargetFramework.Contains('-maccatalyst')) and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'arm64'">maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers>
+    <!-- Workaround for Razor SDK staticwebassets.build.json issue with Android multi-RID builds -->
+    <RuntimeIdentifiers Condition="$(TargetFramework.Contains('-android'))">android-arm64</RuntimeIdentifiers>
     <ExcludeMicrosoftNetTestSdk>true</ExcludeMicrosoftNetTestSdk>
     <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
   </PropertyGroup>
@@ -69,6 +73,11 @@
     <EmbeddedResource Include="Resources\Fonts\Dokdo-Regular.ttf" />
     <EmbeddedResource Include="Resources\Images\royals.png" />
     <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Include wwwroot files for BlazorWebView on Android -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android' or '$(TargetFramework)' == 'net10.0-android36.0'">
+    <AndroidAsset Include="wwwroot\**" />
   </ItemGroup>
 
   <ItemGroup>

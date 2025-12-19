@@ -1,0 +1,26 @@
+@page "/counter"
+@namespace Controls.TestCases.HostApp.Issues.Issue32767Components
+@inject NavigationManager Navigation
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @currentCount</p>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+<button class="btn btn-secondary" @onclick="NavigateToWeather">Navigate to Weather</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+
+    private void NavigateToWeather()
+    {
+        // Navigate to weather page with forceLoad=true and replace=false
+        // This tests BlazorWebView back navigation behavior
+        Navigation.NavigateTo($"/weather", true, false);
+    }
+}

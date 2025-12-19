@@ -37,6 +37,10 @@ namespace Maui.Controls.Sample
 			appBuilder.ConfigureCollectionViewHandlers();
 
 #endif
+
+#pragma warning disable CA1416 // Validate platform compatibility
+			appBuilder.Services.AddMauiBlazorWebView();
+#pragma warning restore CA1416 // Validate platform compatibility
 			// Register the custom handler
 			appBuilder.ConfigureMauiHandlers(handlers =>
 			{
