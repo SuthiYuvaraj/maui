@@ -84,7 +84,8 @@
 
   <!-- Force include Blazor assemblies -->
   <PropertyGroup>
-    <PublishTrimmed>false</PublishTrimmed>
+    <MtouchLink>None</MtouchLink>
+    <AndroidLinkMode>None</AndroidLinkMode>
     <TrimMode>copyused</TrimMode>
   </PropertyGroup>
 

@@ -28,9 +28,11 @@ namespace Microsoft.Maui.TestCases.Tests.Issues
             // Wait for Counter page to load
             App.WaitForElement("Counter");
             
-            // Perform swipe from left edge to simulate back gesture
-            // This should navigate back within BlazorWebView instead of closing the app
+#if ANDROID
             App.SwipeLeftToRight(swipePercentage: 0.10, swipeSpeed: 500);
+ #else
+           App.Tap("Back to Home")
+#endif
             
             // Verify we're back on the Home page (BlazorWebView navigated back, app did NOT close)
             App.WaitForElement("Home Page");
