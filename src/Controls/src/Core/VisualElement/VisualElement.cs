@@ -1864,6 +1864,11 @@ namespace Microsoft.Maui.Controls
 		EventHandler? _loaded;
 		EventHandler? _unloaded;
 		bool _watchingPlatformLoaded;
+#if ANDROID
+		// Android-specific: Track the last platform view to prevent redundant Loaded events
+		// during Shell fragment lifecycle changes
+		object? _lastPlatformView;
+#endif
 		Rect _frame = new Rect(0, 0, -1, -1);
 		event EventHandler? _windowChanged;
 		event EventHandler? _platformContainerViewChanged;
@@ -1898,6 +1903,11 @@ namespace Microsoft.Maui.Controls
 			base.OnHandlerChangedCore();
 
 			IsPlatformEnabled = Handler != null;
+#if ANDROID
+			// Android-specific: Reset tracked platform view when handler changes
+			// to ensure proper Loaded event handling with new platform views
+			_lastPlatformView = null;
+#endif
 			UpdatePlatformUnloadedLoadedWiring(Window);
 		}
 
