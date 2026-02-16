@@ -465,6 +465,37 @@ internal static class LayoutFactory2
 			{
 				ForceScrollToLastItem(CollectionView);
 			}
+			else if (_itemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepItemsInView)
+			{
+				ForceScrollToFirstItem(CollectionView);
+			}
+		}
+
+		void ForceScrollToFirstItem(UICollectionView collectionView)
+		{
+			int sections = (int)collectionView.NumberOfSections();
+
+			if (sections == 0)
+			{
+				return;
+			}
+
+			if (collectionView.NumberOfItemsInSection(0) > 0)
+			{
+				var indexPath = NSIndexPath.FromItemSection(0, 0);
+				if (Configuration.ScrollDirection == UICollectionViewScrollDirection.Vertical)
+				{
+					collectionView.ScrollToItem(indexPath, UICollectionViewScrollPosition.Top, true);
+				}
+				else
+				{
+					var layoutDirection = collectionView.EffectiveUserInterfaceLayoutDirection;
+					var scrollPosition = layoutDirection == UIUserInterfaceLayoutDirection.RightToLeft
+						? UICollectionViewScrollPosition.Right
+						: UICollectionViewScrollPosition.Left;
+					collectionView.ScrollToItem(indexPath, scrollPosition, true);
+				}
+			}
 		}
 
 		void ForceScrollToLastItem(UICollectionView collectionView)
