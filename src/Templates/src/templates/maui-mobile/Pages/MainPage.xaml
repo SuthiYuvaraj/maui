@@ -58,7 +58,7 @@
                                         SelectionMode="Single"
                                         SelectedItem="{Binding SelectedProject}"
                                         SelectionChangedCommand="{Binding NavigateToProjectCommand, Source={RelativeSource AncestorType={x:Type pageModels:MainPageModel}}, x:DataType=pageModels:MainPageModel}"
-                                        SelectionChangedCommandParameter="{Binding SelectedProject}">
+                                        SelectionChangedCommandParameter="{Binding Path=SelectedItem, Source={x:Reference ProjectsCollectionView}}">
                             <CollectionView.ItemsLayout>
                                 <LinearItemsLayout Orientation="Horizontal" ItemSpacing="7.5"/>
                             </CollectionView.ItemsLayout>
