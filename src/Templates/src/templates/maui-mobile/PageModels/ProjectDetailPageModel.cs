@@ -43,9 +43,23 @@ public partial class ProjectDetailPageModel : ObservableObject, IQueryAttributab
 
 	[ObservableProperty]
 	bool _isBusy;
-
-	[ObservableProperty]
 	private bool _isCategoryPickerExpanded;
+	public bool IsCategoryPickerExpanded
+	{
+		get => _isCategoryPickerExpanded;
+		set
+		{
+			if (_isCategoryPickerExpanded == value)
+				return;
+
+			_isCategoryPickerExpanded = value;
+			OnPropertyChanged();
+
+			SemanticScreenReader.Announce(value
+				? "State Expanded"
+				: "State Collapsed");
+		}
+	}
 
 	[ObservableProperty]
 	private List<IconData> _icons =	new List<IconData>
@@ -185,18 +199,6 @@ public partial class ProjectDetailPageModel : ObservableObject, IQueryAttributab
 	{
 		await _taskRepository.SaveItemAsync(task);
 		OnPropertyChanged(nameof(HasCompletedTasks));
-	}
-
-	partial void  OnIsCategoryPickerExpandedChanged(bool value)
-	{
-		if (value)
-		{
-			SemanticScreenReader.Announce("Category ComboBox, State Expanded");
-		}
-		else
-		{
-			SemanticScreenReader.Announce("Category ComboBox, State Collapsed");
-		}
 	}
 
 	[RelayCommand]
