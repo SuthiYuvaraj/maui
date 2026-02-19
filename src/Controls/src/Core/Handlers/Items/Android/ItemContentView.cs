@@ -90,6 +90,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				handler.LayoutVirtualView(l, t, r, b);
 			}
+
+			// Ensure the View's Frame is updated with the final layout bounds
+			// This is especially important during scrolling scenarios in CollectionView for hierarchical item structures
+			var currentFrame = View.Frame;
+			var newFrame = new Graphics.Rect(this.FromPixels(l), this.FromPixels(t),
+				this.FromPixels(r - l), this.FromPixels(b - t));
+			if (currentFrame != newFrame)
+			{
+				View.Frame = newFrame;
+			}
 		}
 
 		protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
@@ -189,6 +199,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			var height = heightMode == MeasureSpecMode.Unspecified
 				? double.PositiveInfinity
 				: this.FromPixels(pixelHeight);
+
+			// Update the View's Frame BEFORE measuring child elements so that Width and Height 
+			// properties are available to nested child elements during their measure calculations in CollectionView scenarios.
+			// This addresses the hierarchical structure issue where CollectionView doesn't properly measure all nested elements.
+			var currentFrame = View.Frame;
+			var newFrame = new Graphics.Rect(currentFrame.X, currentFrame.Y, width, height);
+			if (currentFrame != newFrame)
+			{
+				View.Frame = newFrame;
+			}
 
 			var measure = View.Measure(width, height);
 
