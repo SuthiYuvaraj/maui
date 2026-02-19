@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Linq;
 using Microsoft.Maui.Controls.Platform;
 using Microsoft.UI.Xaml;
@@ -27,10 +28,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		bool _isCarouselViewReady;
 		NotifyCollectionChangedEventHandler _collectionChanged;
 		readonly WeakNotifyCollectionChangedProxy _proxy = new();
+		WeakNotifyPropertyChangedProxy _layoutPropertyChangedProxy;
+		PropertyChangedEventHandler _layoutPropertyChanged;
 
-		~CarouselViewHandler() => _proxy.Unsubscribe();
+		~CarouselViewHandler() 
+		{
+			_proxy.Unsubscribe();
+			_layoutPropertyChangedProxy?.Unsubscribe();
+		}
 
-		protected override IItemsLayout Layout { get; }
+		protected override IItemsLayout Layout => ItemsView?.ItemsLayout;
 
 		LinearItemsLayout CarouselItemsLayout => ItemsView?.ItemsLayout;
 		WDataTemplate CarouselItemsViewTemplate => (WDataTemplate)WApp.Current.Resources["CarouselItemsViewDefaultTemplate"];
@@ -41,6 +48,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			platformView.SizeChanged += OnListViewSizeChanged;
 
 			UpdateScrollBarVisibilityForLoop();
+
+			UpdateLayoutPropertyChangeProxy();
 
 			base.ConnectHandler(platformView);
 		}
@@ -54,6 +63,12 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				platformView.SizeChanged -= OnListViewSizeChanged;
 				_proxy.Unsubscribe();
+			}
+
+			if (_layoutPropertyChangedProxy is not null)
+			{
+				_layoutPropertyChangedProxy.Unsubscribe();
+				_layoutPropertyChangedProxy = null;
 			}
 
 			if (_scrollViewer != null)
@@ -74,6 +89,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				return;
 
 			base.UpdateItemsSource();
+
+			// Update snap points after items source changes
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 
 		protected override void UpdateItemTemplate()
@@ -102,6 +121,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				UpdateScrollBarVisibility();
 			}
+
+			// Update snap points when ScrollViewer is found
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 
 		protected override ICollectionView GetCollectionView(CollectionViewSource collectionViewSource)
@@ -433,16 +456,66 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			return WSnapPointsAlignment.Center;
 		}
 
+		void LayoutPropertyChanged(object sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == ItemsLayout.SnapPointsTypeProperty.PropertyName)
+				UpdateSnapPointsType();
+			else if (e.PropertyName == ItemsLayout.SnapPointsAlignmentProperty.PropertyName)
+				UpdateSnapPointsAlignment();
+		}
+
+		public static void MapItemsLayout(CarouselViewHandler handler, CarouselView carouselView)
+		{
+			handler.UpdateLayoutPropertyChangeProxy();
+		}
+
+		void UpdateLayoutPropertyChangeProxy()
+		{
+			// Clean up the old proxy
+			if (_layoutPropertyChangedProxy is not null)
+			{
+				_layoutPropertyChangedProxy.Unsubscribe();
+				_layoutPropertyChangedProxy = null;
+			}
+
+			// Set up the new proxy if Layout is not null
+			if (Layout is not null)
+			{
+				_layoutPropertyChanged ??= LayoutPropertyChanged;
+				_layoutPropertyChangedProxy = new WeakNotifyPropertyChangedProxy(Layout, _layoutPropertyChanged);
+			}
+		}
+
 		void UpdateSnapPointsType()
 		{
 			if (_scrollViewer == null || CarouselItemsLayout == null)
 				return;
 
+			var windowsSnapType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Horizontal)
-				_scrollViewer.HorizontalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+			{
+				_scrollViewer.HorizontalSnapPointsType = windowsSnapType;
+				// Ensure zoom mode is disabled for proper snap point behavior
+				_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+				// Ensure scroll mode is enabled for snap points to work
+				if (windowsSnapType != WSnapPointsType.None && ItemsView.IsSwipeEnabled)
+				{
+					_scrollViewer.HorizontalScrollMode = WScrollMode.Auto;
+				}
+			}
 
 			if (CarouselItemsLayout.Orientation == ItemsLayoutOrientation.Vertical)
-				_scrollViewer.VerticalSnapPointsType = GetWindowsSnapPointsType(CarouselItemsLayout.SnapPointsType);
+			{
+				_scrollViewer.VerticalSnapPointsType = windowsSnapType;
+				// Ensure zoom mode is disabled for proper snap point behavior
+				_scrollViewer.ZoomMode = Microsoft.UI.Xaml.Controls.ZoomMode.Disabled;
+				// Ensure scroll mode is enabled for snap points to work
+				if (windowsSnapType != WSnapPointsType.None && ItemsView.IsSwipeEnabled)
+				{
+					_scrollViewer.VerticalScrollMode = WScrollMode.Auto;
+				}
+			}
 		}
 
 		void UpdateSnapPointsAlignment()
@@ -596,6 +669,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				item.ItemWidth = itemWidth;
 			}
 			ListViewBase.InvalidateMeasure();
+
+			// Refresh snap points after item size changes
+			UpdateSnapPointsType();
+			UpdateSnapPointsAlignment();
 		}
 	}
 }
