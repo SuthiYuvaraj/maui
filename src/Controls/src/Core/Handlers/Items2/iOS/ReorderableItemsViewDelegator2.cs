@@ -30,6 +30,18 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				{
 					targetIndexPath = originalIndexPath;
 				}
+
+				// When CanMixGroups is true and the proposed path equals the original (no valid target under drag point),
+				// try to redirect the drop to a nearby empty group.
+				if (originalIndexPath.Equals(proposedIndexPath) && itemsView.CanMixGroups)
+				{
+					var itemsSource = ViewController?.ItemsSource;
+					var emptyGroupTarget = FindNearestEmptyGroup(itemsSource, originalIndexPath);
+					if (emptyGroupTarget != null)
+					{
+						targetIndexPath = emptyGroupTarget;
+					}
+				}
 			}
 			else
 			{
@@ -37,6 +49,28 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			}
 
 			return targetIndexPath;
+		}
+
+		static NSIndexPath FindNearestEmptyGroup(Items.IItemsViewSource itemsSource, NSIndexPath currentIndexPath)
+		{
+			if (itemsSource == null)
+				return null;
+
+			var currentSection = (int)currentIndexPath.Section;
+			var groupCount = itemsSource.GroupCount;
+
+			for (int distance = 1; distance < groupCount; distance++)
+			{
+				var sectionAbove = currentSection - distance;
+				if (sectionAbove >= 0 && itemsSource.ItemCountInGroup(sectionAbove) == 0)
+					return NSIndexPath.Create(sectionAbove, 0);
+
+				var sectionBelow = currentSection + distance;
+				if (sectionBelow < groupCount && itemsSource.ItemCountInGroup(sectionBelow) == 0)
+					return NSIndexPath.Create(sectionBelow, 0);
+			}
+
+			return null;
 		}
 	}
 }
