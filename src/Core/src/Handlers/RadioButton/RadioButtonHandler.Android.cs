@@ -1,6 +1,8 @@
-﻿using Android.Views;
+﻿using System;
+using Android.Views;
 using Android.Widget;
 using AndroidX.AppCompat.Widget;
+using Microsoft.Maui.Platform;
 
 namespace Microsoft.Maui.Handlers
 {
@@ -27,12 +29,18 @@ namespace Microsoft.Maui.Handlers
 			AppCompatRadioButton? platformRadioButton = GetPlatformRadioButton(this);
 			if (platformRadioButton != null)
 				platformRadioButton.CheckedChange += OnCheckChanged;
+
+			if (platformView is RadioButtonContentViewGroup radioButtonContentViewGroup)
+				radioButtonContentViewGroup.CheckedChange += OnContentViewGroupCheckedChange;
 		}
 
 		protected override void DisconnectHandler(View platformView)
 		{
 			if (platformView is AppCompatRadioButton platformRadioButton)
 				platformRadioButton.CheckedChange -= OnCheckChanged;
+
+			if (platformView is RadioButtonContentViewGroup radioButtonContentViewGroup)
+				radioButtonContentViewGroup.CheckedChange -= OnContentViewGroupCheckedChange;
 		}
 
 		public static void MapBackground(IRadioButtonHandler handler, IRadioButton radioButton)
@@ -43,6 +51,9 @@ namespace Microsoft.Maui.Handlers
 		public static void MapIsChecked(IRadioButtonHandler handler, IRadioButton radioButton)
 		{
 			GetPlatformRadioButton(handler)?.UpdateIsChecked(radioButton);
+
+			if (handler.PlatformView is RadioButtonContentViewGroup rbcvg)
+				rbcvg.IsChecked = radioButton.IsChecked;
 		}
 
 		public static void MapContent(IRadioButtonHandler handler, IRadioButton radioButton)
@@ -88,6 +99,14 @@ namespace Microsoft.Maui.Handlers
 				return;
 
 			VirtualView.IsChecked = e.IsChecked;
+		}
+
+		void OnContentViewGroupCheckedChange(object? sender, EventArgs e)
+		{
+			if (VirtualView == null)
+				return;
+
+			VirtualView.IsChecked = !VirtualView.IsChecked;
 		}
 	}
 }

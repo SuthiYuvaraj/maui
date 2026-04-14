@@ -14,7 +14,7 @@ namespace Microsoft.Maui.Controls
 		{
 			if (radioButton.ResolveControlTemplate() != null)
 			{
-				if (handler.PlatformView is ContentViewGroup vg && handler.MauiContext != null)
+				if (handler.PlatformView is RadioButtonContentViewGroup vg && handler.MauiContext != null)
 				{
 					// Cleanup the old view when reused
 					vg.RemoveAllViews();
@@ -49,7 +49,7 @@ namespace Microsoft.Maui.Controls
 				return null;
 			}
 
-			var viewGroup = new ContentViewGroup(radioButton.Context)
+			var viewGroup = new RadioButtonContentViewGroup(radioButton.Context)
 			{
 				CrossPlatformLayout = radioButton.VirtualView
 			};
