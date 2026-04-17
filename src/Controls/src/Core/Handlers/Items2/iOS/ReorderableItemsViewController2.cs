@@ -13,6 +13,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 	{
 		bool _disposed;
 		UILongPressGestureRecognizer _longPressGestureRecognizer;
+		nint _reorderSourceSection = -1;
+		nint _reorderDestinationSection = -1;
 
 #if MACCATALYST
 		const double defaultMacCatalystPressDuration = 0.1;
@@ -96,9 +98,21 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 					break;
 				case UIGestureRecognizerState.Ended:
 					collectionView.EndInteractiveMovement();
+					if (ItemsView?.IsGrouped == true && _reorderSourceSection >= 0 && _reorderSourceSection != _reorderDestinationSection)
+					{
+						UIView.PerformWithoutAnimation(() =>
+						{
+							var indexSet = NSIndexSet.FromArray(new nint[] { _reorderSourceSection, _reorderDestinationSection });
+							collectionView.ReloadSections(indexSet);
+						});
+					}
+					_reorderSourceSection = -1;
+					_reorderDestinationSection = -1;
 					break;
 				default:
 					collectionView.CancelInteractiveMovement();
+					_reorderSourceSection = -1;
+					_reorderDestinationSection = -1;
 					break;
 			}
 		}
@@ -115,6 +129,9 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 
 			if (itemsView.IsGrouped)
 			{
+				_reorderSourceSection = sourceIndexPath.Section;
+				_reorderDestinationSection = destinationIndexPath.Section;
+
 				var fromList = itemsSource.Group(sourceIndexPath) as IList;
 				var fromItemsSource = fromList is INotifyCollectionChanged ? itemsSource.GroupItemsViewSource(sourceIndexPath) : null;
 				var fromItemIndex = sourceIndexPath.Row;
