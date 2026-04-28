@@ -13,14 +13,10 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		protected override StructuredItemsViewAdapter<TItemsView, IItemsViewSource> CreateAdapter() => new(VirtualView);
 
 		public static void MapHeaderTemplate(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
-		{
-			handler.UpdateHeaderFooter(true);
-		}
+			=> (handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
 
 		public static void MapFooterTemplate(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
-		{
-			handler.UpdateHeaderFooter(false);
-		}
+			=> (handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
 
 		public static void MapItemsLayout(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 			=> (handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateLayoutManager();
@@ -28,72 +24,5 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		public static void MapItemSizingStrategy(StructuredItemsViewHandler<TItemsView> handler, StructuredItemsView itemsView)
 			=> (handler.PlatformView as IMauiRecyclerView<TItemsView>)?.UpdateAdapter();
 
-		void UpdateHeaderFooter(bool isHeader)
-		{
-			var recyclerView = PlatformView as IMauiRecyclerView<TItemsView>;
-			var adapter = (recyclerView as RecyclerView)?.GetAdapter();
-
-			if (recyclerView is null || adapter is null)
-			{
-				return;
-			}
-
-			bool hasHeaderOrFooter = isHeader
-			? (VirtualView.Header ?? VirtualView.HeaderTemplate) != null
-			: (VirtualView.Footer ?? VirtualView.FooterTemplate) != null;
-
-			bool exists = isHeader
-			? DoesHeaderExist(adapter)
-			: DoesFooterExist(adapter);
-
-			if (hasHeaderOrFooter && exists && IsDynamicChange())
-			{
-				recyclerView.UpdateAdapter();
-			}
-			else if (hasHeaderOrFooter != exists)
-			{
-				recyclerView.UpdateAdapter();
-			}
-		}
-
-		bool DoesHeaderExist(RecyclerView.Adapter adapter)
-		{
-			if (adapter.ItemCount <= 0)
-			{
-				return false;
-			}
-
-			try
-			{
-				return adapter.GetItemViewType(0) == ItemViewType.Header;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		bool DoesFooterExist(RecyclerView.Adapter adapter)
-		{
-			var footerPosition = adapter.ItemCount - 1;
-			if (footerPosition < 0)
-			{
-				return false;
-			}
-
-			try
-			{
-				return adapter.GetItemViewType(footerPosition) == ItemViewType.Footer;
-			}
-			catch
-			{
-				return false;
-			}
-		}
-
-		bool IsDynamicChange()
-		{
-			return (PlatformView as RecyclerView)?.IsLaidOut == true;
-		}
 	}
 }
