@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 
 namespace Maui.Controls.Sample.Issues;
+
 [Issue(IssueTracker.Github, 29261, "CarouselViewHandler2 for iOS does not properly bounce back when reaching the end with Loop=false", PlatformAffected.iOS)]
 public class Issue29261 : ContentPage
 {
@@ -52,8 +53,19 @@ public class Issue29261 : ContentPage
 			label.Text = $"CarouselView Position - {carousel.Position}";
 		};
 
+		var goToLastButton = new Button
+		{
+			Text = "Go to Last",
+			AutomationId = "goToLastButton",
+		};
+		goToLastButton.Clicked += (s, e) =>
+		{
+			carousel.Position = carouselItems.Count - 1;
+		};
+
 		verticalStackLayout.Children.Add(carousel);
 		verticalStackLayout.Children.Add(label);
+		verticalStackLayout.Children.Add(goToLastButton);
 		Content = verticalStackLayout;
 	}
 }
