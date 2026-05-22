@@ -1,252 +1,611 @@
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using WDataTransfer = Windows.ApplicationModel.DataTransfer;
 
-namespace Microsoft.Maui.Controls.Handlers.Items2
+namespace Microsoft.Maui.Controls.Handlers.Items2;
+
+/// <summary>
+/// Drag-and-drop / reordering implementation for <see cref="MauiItemsView"/>.
+/// Supports <see cref="ReorderableItemsView.CanReorderItems"/> and
+/// <see cref="ReorderableItemsView.CanMixGroups"/> for both flat and grouped sources.
+/// </summary>
+internal partial class MauiItemsView
 {
+	// Drag and drop fields
+	object? _draggedItem;
+	ItemContainer? _sourceContainer;
+	int _insertionIndex = -1;
+	bool _insertAfter;
+	bool _canReorderItems;
+	bool _dragDropWired;
+	ItemsView? _mauiVirtualView;
+
 	/// <summary>
-	/// Partial class containing drag and drop implementation for MauiItemsView.
+	/// True while a drag/drop reorder mutation is in progress. Used by
+	/// <see cref="ItemsViewHandler2{TItemsView}"/> to skip <c>ApplyItemsUpdatingScrollMode</c>
+	/// during the collection change that results from the reorder, so the scroll position
+	/// is not reset to the first or last item by the items-updating scroll mode logic.
 	/// </summary>
-	internal partial class MauiItemsView
+	internal bool IsReordering { get; private set; }
+
+	// Between-items drop indicator — circle head with "+" and a colored line on _dropIndicatorCanvas.
+	Border? _dropIndicatorHead;    // filled circle with "+" at the leading edge
+	Rectangle? _dropIndicatorLine; // accent-colored line extending from the circle
+
+	// Dim overlay opacity applied to non-source containers during a drag so the
+	// list visually enters "reorder mode" (same pattern as iOS drag-reorder).
+	const double DragDimOpacity = 0.4;
+
+	// Auto-scroll fields
+	Microsoft.UI.Dispatching.DispatcherQueueTimer? _autoScrollTimer;
+	double _targetScrollVelocity;
+	double _currentScrollVelocity;
+	const double AutoScrollThreshold = 60.0;
+	const double AutoScrollMaxSpeed = 25.0;
+	const double AutoScrollMinSpeed = 3.0;
+	const double ScrollAcceleration = 0.3;
+
+	RoutedEventHandler? _deferredWireHandler;
+
+	/// <summary>
+	/// Event fired when a reorder operation completes successfully.
+	/// </summary>
+	public event EventHandler? ReorderCompleted;
+
+	/// <summary>
+	/// Convenience accessor that exposes the templated ItemsRepeater.
+	/// </summary>
+	ItemsRepeater? ItemsRepeaterControl => _itemsRepeater as ItemsRepeater;
+
+	/// <summary>
+	/// Sets a reference to the MAUI ItemsView for accessing the original ItemsSource
+	/// during drag/drop reorder operations. The MAUI source is mutated directly so
+	/// reorder events propagate back through the normal data binding pipeline.
+	/// </summary>
+	public void SetMauiVirtualView(ItemsView? itemsView)
 	{
-		// Drag and drop fields
-		object? _draggedItem;
-		int _insertionIndex = -1;
-		bool _insertAfter = false;
-		bool _canReorderItems = true;
+		_mauiVirtualView = itemsView;
+	}
 
-		// Auto-scroll fields - Smooth scrolling based on drag position
-		Microsoft.UI.Dispatching.DispatcherQueueTimer? _autoScrollTimer;
-		double _targetScrollVelocity;
-		double _currentScrollVelocity;
-		const double AutoScrollThreshold = 60.0;
-		const double AutoScrollMaxSpeed = 25.0;  // Increased from 15
-		const double AutoScrollMinSpeed = 3.0;   // Increased from 2
-		const double ScrollAcceleration = 0.3;
+	/// <summary>
+	/// Updates drag and drop capabilities for reordering items.
+	/// </summary>
+	public void UpdateCanReorderItems(bool canReorderItems)
+	{
+		_canReorderItems = canReorderItems;
 
-		/// <summary>
-		/// Event fired when a reorder operation completes successfully.
-		/// </summary>
-		public event EventHandler? ReorderCompleted;
-
-		/// <summary>
-		/// Updates drag and drop capabilities for reordering items.
-		/// </summary>
-		/// <param name="canReorderItems">Whether items can be reordered by the user</param>
-		public void UpdateCanReorderItems(bool canReorderItems)
+		if (_scrollViewer is null)
 		{
-			_canReorderItems = canReorderItems;
-			
-			if (_scrollView is not null)
+			// Template hasn't applied yet — defer wiring until Loaded.
+			if (_deferredWireHandler is null)
 			{
-				if (canReorderItems)
+				_deferredWireHandler = OnLoadedForDragDrop;
+				Loaded += _deferredWireHandler;
+			}
+			return;
+		}
+
+		ApplyDragDropState();
+	}
+
+	void OnLoadedForDragDrop(object sender, RoutedEventArgs e)
+	{
+		if (_deferredWireHandler is not null)
+		{
+			Loaded -= _deferredWireHandler;
+			_deferredWireHandler = null;
+		}
+
+		ApplyDragDropState();
+	}
+
+	void ApplyDragDropState()
+	{
+		if (_canReorderItems)
+		{
+			WireUpDragDropEvents();
+		}
+		else
+		{
+			UnwireDragDropEvents();
+		}
+	}
+
+	#region Drag and Drop Event Wiring
+
+	void WireUpDragDropEvents()
+	{
+		if (_dragDropWired || _scrollViewer is null)
+		{
+			return;
+		}
+
+		_scrollViewer.AllowDrop = true;
+		_scrollViewer.DragEnter -= ScrollViewer_DragEnter;
+		_scrollViewer.DragOver -= ScrollViewer_DragOver;
+		_scrollViewer.DragLeave -= ScrollViewer_DragLeave;
+		_scrollViewer.Drop -= ScrollViewer_Drop;
+
+		_scrollViewer.DragEnter += ScrollViewer_DragEnter;
+		_scrollViewer.DragOver += ScrollViewer_DragOver;
+		_scrollViewer.DragLeave += ScrollViewer_DragLeave;
+		_scrollViewer.Drop += ScrollViewer_Drop;
+
+		var repeater = ItemsRepeaterControl;
+		if (repeater is not null)
+		{
+			repeater.ElementPrepared -= ItemsRepeater_ElementPrepared;
+			repeater.ElementClearing -= ItemsRepeater_ElementClearing;
+			repeater.ElementPrepared += ItemsRepeater_ElementPrepared;
+			repeater.ElementClearing += ItemsRepeater_ElementClearing;
+
+			// Apply drag affordance to already-realized containers. ItemsRepeater
+			// virtualizes containers, so TryGetElement returns null for unrealized
+			// indices — we must iterate over the full source range to avoid missing
+			// realized containers that sit past an unrealized gap.
+			// Use ItemsSourceView.Count (the repeater's own flat count) rather than
+			// GetSourceList().Count: for grouped lists GetSourceList() returns the
+			// MAUI-side groups collection whose Count equals the number of groups, not
+			// the flat total of headers + items + footers.
+			int flatCount = repeater.ItemsSourceView?.Count ?? 0;
+			for (int i = 0; i < flatCount; i++)
+			{
+				if (repeater.TryGetElement(i) is ItemContainer ic)
 				{
-					WireUpDragDropEvents();
+					ApplyDragAffordance(ic, i);
 				}
-				else
+			}
+		}
+
+		_dragDropWired = true;
+	}
+
+	void UnwireDragDropEvents()
+	{
+		if (!_dragDropWired)
+		{
+			return;
+		}
+
+		if (_scrollViewer is not null)
+		{
+			_scrollViewer.AllowDrop = false;
+			_scrollViewer.DragEnter -= ScrollViewer_DragEnter;
+			_scrollViewer.DragOver -= ScrollViewer_DragOver;
+			_scrollViewer.DragLeave -= ScrollViewer_DragLeave;
+			_scrollViewer.Drop -= ScrollViewer_Drop;
+		}
+
+		var repeater = ItemsRepeaterControl;
+		if (repeater is not null)
+		{
+			repeater.ElementPrepared -= ItemsRepeater_ElementPrepared;
+			repeater.ElementClearing -= ItemsRepeater_ElementClearing;
+
+			// Iterate the full source range; TryGetElement returns null for unrealized
+			// indices so we can't stop at the first gap and assume we've cleared every
+			// realized container. Use ItemsSourceView.Count for the same reason as
+			// WireDragDropEvents — GetSourceList().Count is wrong for grouped data.
+			int flatCount = repeater.ItemsSourceView?.Count ?? 0;
+			for (int i = 0; i < flatCount; i++)
+			{
+				if (repeater.TryGetElement(i) is ItemContainer ic)
 				{
-					UnwireDragDropEvents();
+					ic.CanDrag = false;
+					ic.DragStarting -= ItemContainer_DragStarting;
+					ic.DropCompleted -= ItemContainer_DropCompleted;
 				}
 			}
 		}
 
-		
-		#region Drag and Drop Event Wiring
+		StopAutoScroll();
+		_dragDropWired = false;
+	}
 
-		void WireUpDragDropEvents()
+	internal void DisconnectDragDrop()
+	{
+		UnwireDragDropEvents();
+		if (_deferredWireHandler is not null)
 		{
-			if (_scrollView is null)
-				return;
-
-			_scrollView.AllowDrop = true;
-			_scrollView.DragEnter -= ScrollView_DragEnter;
-			_scrollView.DragOver -= ScrollView_DragOver;
-			_scrollView.DragLeave -= ScrollView_DragLeave;
-			_scrollView.Drop -= ScrollView_Drop;
-
-			_scrollView.DragEnter += ScrollView_DragEnter;
-			_scrollView.DragOver += ScrollView_DragOver;
-			_scrollView.DragLeave += ScrollView_DragLeave;
-			_scrollView.Drop += ScrollView_Drop;
-
-			if (_itemsRepeater is not null)
-			{
-				_itemsRepeater.ElementPrepared += ItemsRepeater_ElementPrepared;
-			}
+			Loaded -= _deferredWireHandler;
+			_deferredWireHandler = null;
 		}
 
-		void UnwireDragDropEvents()
+		// Fully tear down the auto-scroll timer. StopAutoScroll only calls Stop(),
+		// which leaves the Tick delegate (and therefore this instance) rooted by
+		// the dispatcher queue.
+		if (_autoScrollTimer is not null)
 		{
-			if (_scrollView is not null)
-			{
-				_scrollView.AllowDrop = false;
-				_scrollView.DragEnter -= ScrollView_DragEnter;
-				_scrollView.DragOver -= ScrollView_DragOver;
-				_scrollView.DragLeave -= ScrollView_DragLeave;
-				_scrollView.Drop -= ScrollView_Drop;
-			}
-
-			if (_itemsRepeater is not null)
-			{
-				_itemsRepeater.ElementPrepared -= ItemsRepeater_ElementPrepared;
-				_itemsRepeater.ElementClearing -= ItemsRepeater_ElementClearing;
-			}
-
-			StopAutoScroll();
+			_autoScrollTimer.Stop();
+			_autoScrollTimer.Tick -= AutoScrollTimer_Tick;
+			_autoScrollTimer = null;
 		}
 
-		#endregion
+		// Clear any remaining ReorderCompleted subscribers so a stray subscriber
+		// can't keep this instance alive past disconnect.
+		ReorderCompleted = null;
 
-		#region ItemsRepeater Element Management
+		// Hide the indicator visuals. They are template parts owned by the control
+		// template (declared in XAML), so we only need to collapse them — not remove.
+		HideInsertionIndicator();
 
-		void ItemsRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+		_mauiVirtualView = null;
+		CleanupDragState();
+	}
+
+	#endregion
+
+	#region ItemsRepeater Element Management
+
+	void ItemsRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+	{
+		if (!_canReorderItems)
 		{
-			if (!_canReorderItems)
-				return;
-			
-			if (args.Element is ItemContainer itemContainer)
-			{
-				itemContainer.Tag = args.Index;
-				itemContainer.CanDrag = true;
-				itemContainer.DragStarting -= ItemContainer_DragStarting;
-				itemContainer.DragStarting += ItemContainer_DragStarting;
-			}
-		}
-		
-		void ItemsRepeater_ElementClearing(ItemsRepeater sender, ItemsRepeaterElementClearingEventArgs args)
-		{
-			if (args.Element is ItemContainer itemContainer)
-			{
-				itemContainer.CanDrag = false;
-				itemContainer.DragStarting -= ItemContainer_DragStarting;
-				itemContainer.Tag = null;
-			}
+			return;
 		}
 
-		#endregion
-
-		#region Drag Event Handlers
-
-		void ItemContainer_DragStarting(UIElement sender, UI.Xaml.DragStartingEventArgs args)
+		if (args.Element is ItemContainer itemContainer)
 		{
-			var itemContainer = (ItemContainer)sender;
-			
-			object? item = null;
-			if (itemContainer.Tag is int index && index >= 0 && ItemsSource is IList itemsList && index < itemsList.Count)
-			{
-				item = GetItemAtIndex(index, itemsList);
-			}
-			
-			if (item == null || ItemsSource == null)
-			{
-				args.Cancel = true;
-				return;
-			}
-			
-			_draggedItem = item;
-			args.Data.Properties.Add("DragSource", "MauiItemsView");
-			args.Data.RequestedOperation = WDataTransfer.DataPackageOperation.Move;
-		}
-		
-		void ScrollView_DragEnter(object sender, UI.Xaml.DragEventArgs e)
-		{
-			if (!_canReorderItems)
-			{
-				e.AcceptedOperation = WDataTransfer.DataPackageOperation.None;
-				return;
-			}
-			
-			e.AcceptedOperation = WDataTransfer.DataPackageOperation.Move;
-			e.DragUIOverride.IsGlyphVisible = false;
-			e.DragUIOverride.IsCaptionVisible = false;
-		}
-		
-		void ScrollView_DragOver(object sender, UI.Xaml.DragEventArgs e)
-		{
+			ApplyDragAffordance(itemContainer, args.Index);
 
-			if (!_canReorderItems)
+			// If a live-reorder happens to recycle a container onto the dragged
+			// item's new position, hide it immediately. This is what makes the
+			// "empty source slot" follow the dragged item without us having to
+			// chase a moving _sourceContainer reference through dispatcher races.
+			if (_draggedItem is not null && IsContainerBoundToDraggedItem(itemContainer))
 			{
-				e.AcceptedOperation = WDataTransfer.DataPackageOperation.None;
-				return;
-			}
-
-			e.DragUIOverride.IsGlyphVisible = false;
-			e.DragUIOverride.IsCaptionVisible = false;
-
-			// Check for auto-scroll
-			HandleAutoScroll(e);
-
-			var targetContainer = FindContainerUnderPointer(e);
-			if (targetContainer is null)
-			{
-				System.Diagnostics.Debug.WriteLine($"DragOver: No container under pointer");
-				return;
-			}
-			
-			var pt = e.GetPosition(targetContainer);
-			
-			int targetIndex = GetContainerIndex(targetContainer);
-			System.Diagnostics.Debug.WriteLine($"DragOver: targetIndex={targetIndex}, isHorizontal={_isHorizontalLayout}");
-			
-			if (targetIndex < 0)
-			{
-				return;
-			}
-			
-			// Calculate if we should insert before or after based on pointer position
-			if (_isHorizontalLayout)
-			{
-				_insertAfter = pt.X >= targetContainer.ActualWidth / 2;
+				itemContainer.Opacity = 0;
+				itemContainer.IsHitTestVisible = false;
+				_sourceContainer = itemContainer;
 			}
 			else
 			{
-				_insertAfter = pt.Y >= targetContainer.ActualHeight / 2;
+				// Apply dim if a drag is in progress and this is not the source.
+				itemContainer.Opacity = _draggedItem is not null ? DragDimOpacity : 1;
+				itemContainer.IsHitTestVisible = true;
 			}
-			
-			// Insert AT target position or AFTER based on pointer position
-			_insertionIndex = _insertAfter ? targetIndex + 1 : targetIndex;
-
-			System.Diagnostics.Debug.WriteLine($"DragOver: insertAfter={_insertAfter}, _insertionIndex={_insertionIndex}");
-
-			e.AcceptedOperation = WDataTransfer.DataPackageOperation.Move;
-			e.Handled = true;
-			
 		}
-		
-		void ScrollView_DragLeave(object sender, UI.Xaml.DragEventArgs e)
+	}
+
+	void ApplyDragAffordance(ItemContainer itemContainer, int index)
+	{
+		itemContainer.Tag = index;
+
+		// Don't allow dragging headers, footers, or group headers/footers.
+		bool isHeaderOrFooter = itemContainer.Child is ElementWrapper wrapper &&
+			wrapper.IsHeaderOrFooter;
+
+		itemContainer.CanDrag = !isHeaderOrFooter;
+		itemContainer.DragStarting -= ItemContainer_DragStarting;
+		if (!isHeaderOrFooter)
 		{
-			StopAutoScroll();
+			itemContainer.DragStarting += ItemContainer_DragStarting;
 		}
-		
-		void ScrollView_Drop(object sender, UI.Xaml.DragEventArgs e)
+	}
+
+	void ItemsRepeater_ElementClearing(ItemsRepeater sender, ItemsRepeaterElementClearingEventArgs args)
+	{
+		if (!_canReorderItems)
 		{
-			System.Diagnostics.Debug.WriteLine($"=== DROP EVENT ===");
-			System.Diagnostics.Debug.WriteLine($"  _canReorderItems: {_canReorderItems}");
-			System.Diagnostics.Debug.WriteLine($"  ItemsSource is IList: {ItemsSource is IList}");
-			System.Diagnostics.Debug.WriteLine($"  _draggedItem: {_draggedItem}");
-			System.Diagnostics.Debug.WriteLine($"  _insertionIndex: {_insertionIndex}");
-			
-			if (!_canReorderItems || ItemsSource is not IList itemsList || _draggedItem is null || _insertionIndex < 0)
+			return;
+		}
+
+		if (args.Element is ItemContainer itemContainer)
+		{
+			itemContainer.CanDrag = false;
+			itemContainer.DragStarting -= ItemContainer_DragStarting;
+			// Unsubscribe DropCompleted — it is a one-shot handler wired during
+			// DragStarting and must be removed here so that a recycled container
+			// doesn't carry a stale subscription into its next use.
+			itemContainer.DropCompleted -= ItemContainer_DropCompleted;
+			itemContainer.Tag = null;
+
+			// If the container being cleared is the one currently hidden as the drag
+			// source (e.g. recycled mid-drag), restore its opacity and hit-testability
+			// so it doesn't get reused while invisible.
+			itemContainer.Opacity = 1;
+			itemContainer.IsHitTestVisible = true;
+			RemoveDragGhostAppearance(itemContainer);
+			if (ReferenceEquals(_sourceContainer, itemContainer))
 			{
-				System.Diagnostics.Debug.WriteLine($"  DROP CANCELLED - Validation failed");
+				_sourceContainer = null;
+			}
+
+			// Reset any stale Translation so the recycled container starts clean.
+			itemContainer.Translation = System.Numerics.Vector3.Zero;
+		}
+	}
+
+	#endregion
+
+	#region Drag Event Handlers
+
+	void ItemContainer_DragStarting(UIElement sender, UI.Xaml.DragStartingEventArgs args)
+	{
+		var itemContainer = (ItemContainer)sender;
+
+		// Use the container's currently bound item first. The Tag/index can become
+		// stale after a reorder because the element is reused without being recreated.
+		object? item = GetContainerItem(itemContainer);
+
+		// Fallback: look up by index from the source (works for IList and IEnumerable).
+		if (item is null && itemContainer.Tag is int index && index >= 0)
+		{
+			var sourceList = GetSourceList();
+			if (sourceList is not null && index < sourceList.Count)
+			{
+				item = GetItemAtIndex(index, sourceList);
+			}
+		}
+
+		if (item is null)
+		{
+			args.Cancel = true;
+			return;
+		}
+
+		_draggedItem = item;
+		_sourceContainer = itemContainer;
+
+		args.Data.Properties.Add("DragSource", "MauiItemsView");
+		args.Data.RequestedOperation = WDataTransfer.DataPackageOperation.Move;
+
+		// Make sure the drop-completed handler is wired exactly once so the source
+		// container's opacity is restored on success, cancel, or escape.
+		itemContainer.DropCompleted -= ItemContainer_DropCompleted;
+		itemContainer.DropCompleted += ItemContainer_DropCompleted;
+
+		// WinUI captures the drag ghost from the compositor tree BEFORE DragStarting
+		// fires — no DragStarting-based approach (sync, deferral, RenderTargetBitmap)
+		// can modify that snapshot.  The default ghost shows the item content on a
+		// transparent background, which is the correct CV2 behaviour.
+		// Hide the source slot and dim others on the next dispatcher frame so the
+		// compositor snapshot has been committed before we change visual state.
+		DispatcherQueue.TryEnqueue(
+			Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal,
+			() =>
+			{
+				if (_sourceContainer is not null)
+				{
+					_sourceContainer.Opacity = 0;
+					_sourceContainer.IsHitTestVisible = false;
+				}
+
+				DimNonSourceContainers();
+			});
+	}
+
+	void ItemContainer_DropCompleted(UIElement sender, UI.Xaml.DropCompletedEventArgs args)
+	{
+		if (sender is ItemContainer itemContainer)
+		{
+			itemContainer.DropCompleted -= ItemContainer_DropCompleted;
+			itemContainer.Opacity = 1;
+			itemContainer.IsHitTestVisible = true;
+		}
+
+		// Restore all containers — dim + source hide
+		foreach (var container in FindAllContainers())
+		{
+			container.Opacity = 1;
+			container.IsHitTestVisible = true;
+		}
+
+		_sourceContainer = null;
+	}
+
+	void ScrollViewer_DragEnter(object sender, UI.Xaml.DragEventArgs e)
+	{
+		if (!_canReorderItems)
+		{
+			e.AcceptedOperation = WDataTransfer.DataPackageOperation.None;
+			return;
+		}
+
+		e.AcceptedOperation = WDataTransfer.DataPackageOperation.Move;
+		e.DragUIOverride.IsGlyphVisible = false;
+		e.DragUIOverride.IsCaptionVisible = false;
+	}
+
+	void ScrollViewer_DragOver(object sender, UI.Xaml.DragEventArgs e)
+	{
+		if (!_canReorderItems)
+		{
+			e.AcceptedOperation = WDataTransfer.DataPackageOperation.None;
+			return;
+		}
+
+		e.DragUIOverride.IsGlyphVisible = false;
+		e.DragUIOverride.IsCaptionVisible = false;
+
+		HandleAutoScroll(e);
+
+		var targetContainer = FindContainerUnderPointer(e);
+		if (targetContainer is null)
+		{
+			return;
+		}
+
+		var pt = e.GetPosition(targetContainer);
+
+		int targetIndex = GetContainerIndex(targetContainer);
+		if (targetIndex < 0)
+		{
+			return;
+		}
+
+		if (_isHorizontalLayout)
+		{
+			_insertAfter = pt.X >= targetContainer.ActualWidth / 2;
+		}
+		else
+		{
+			_insertAfter = pt.Y >= targetContainer.ActualHeight / 2;
+		}
+
+		_insertionIndex = _insertAfter ? targetIndex + 1 : targetIndex;
+
+		if (targetContainer is ItemContainer ic)
+		{
+			UpdateInsertionIndicator(ic, _insertAfter);
+		}
+
+		e.AcceptedOperation = WDataTransfer.DataPackageOperation.Move;
+		e.Handled = true;
+	}
+
+	/// <summary>
+	/// Walks every realized container and sets Opacity = 0 on whichever one is
+	/// currently bound to the dragged item, Opacity = 1 on all others. Idempotent
+	/// and self-healing — a stale hidden container left over from a previous
+	/// reorder is restored automatically.
+	/// </summary>
+	void ReconcileSourceOpacity(object? draggedItem)
+	{
+		if (draggedItem is null)
+		{
+			return;
+		}
+
+		// Always walk every realized container so that any container left at
+		// Opacity < 1 from a previous pass (e.g. a race between ElementPrepared
+		// and a rapid live-reorder) is unconditionally restored. A fast-path that
+		// returns early would silently skip this restoration and leave items
+		// permanently invisible.
+		ItemContainer? newSource = null;
+		foreach (var c in FindAllContainers())
+		{
+			if (c is not ItemContainer ic)
+			{
+				continue;
+			}
+
+			if (IsContainerBoundToItem(ic, draggedItem))
+			{
+				ic.Opacity = 0;
+				ic.IsHitTestVisible = false;
+				newSource = ic;
+			}
+			else if (ic.Opacity < 1)
+			{
+				ic.Opacity = 1;
+				ic.IsHitTestVisible = true;
+			}
+		}
+
+		if (newSource is not null)
+		{
+			_sourceContainer = newSource;
+		}
+	}
+
+	bool IsContainerBoundToDraggedItem(ItemContainer container)
+	{
+		return _draggedItem is not null && IsContainerBoundToItem(container, _draggedItem);
+	}
+
+	static bool IsContainerBoundToItem(ItemContainer container, object item)
+	{
+		if (container.Child is not ElementWrapper wrapper || wrapper.VirtualView is not View view)
+		{
+			return false;
+		}
+
+		var bound = view.BindingContext;
+		if (bound is null)
+		{
+			return false;
+		}
+
+		return ReferenceEquals(bound, item) || Equals(bound, item);
+	}
+
+	/// <summary>
+	/// Attempts to call <see cref="System.Collections.ObjectModel.ObservableCollection{T}.Move(int, int)"/>
+	/// on the list. Using <c>Move</c> fires a single <c>CollectionChanged(Action=Move)</c> event
+	/// instead of two separate Remove + Add events, which allows <see cref="ItemsRepeater"/> to
+	/// reposition the existing container in-place without recycling it — preventing item refresh
+	/// and scroll position resets on drop.
+	///
+	/// The fast path handles <c>ObservableCollection&lt;object&gt;</c> without reflection.
+	/// The general path uses reflection to call <c>Move(int, int)</c> on any
+	/// <c>ObservableCollection&lt;T&gt;</c> type. This is intentional for a drag/drop handler
+	/// in Windows-specific code where AOT trimming is not a concern.
+	///
+	/// Returns <c>false</c> when the collection does not expose <c>Move</c>; the caller
+	/// falls back to <c>RemoveAt</c> + <c>Insert</c>.
+	/// </summary>
+	static bool TryMoveObservableCollection(IList list, int oldIndex, int newIndex)
+	{
+		// Fast path: no reflection needed for the common MAUI binding source type.
+		if (list is System.Collections.ObjectModel.ObservableCollection<object> oc)
+		{
+			oc.Move(oldIndex, newIndex);
+			return true;
+		}
+
+		// General path: ObservableCollection<T> for any T.
+		// Reflection is used intentionally here — ObservableCollection<T>.Move is a
+		// public, stable API and this code runs only during interactive drag/drop on Windows.
+		var moveMethod = list.GetType().GetMethod(
+			"Move",
+			System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+			null,
+			new[] { typeof(int), typeof(int) },
+			null);
+
+		if (moveMethod is not null)
+		{
+			moveMethod.Invoke(list, new object[] { oldIndex, newIndex });
+			return true;
+		}
+
+		return false;
+	}
+
+	void ScrollViewer_DragLeave(object sender, UI.Xaml.DragEventArgs e)
+	{
+		// Do NOT stop auto-scroll here. Two cases where this fires during a valid drag:
+		//   1. Horizontal right edge — pointer exits the ScrollViewer bounds; we want
+		//      scrolling to continue until the drag ends or velocity decays.
+		//   2. Vertical scroll — ChangeView() triggers a brief DragLeave/DragEnter
+		//      cycle as WinUI re-evaluates hit-targets after content shifts; stopping
+		//      here would cause stuttering (scroll→stop→scroll→stop).
+		// The timer decelerates naturally when _targetScrollVelocity is reset to 0 in
+		// HandleAutoScroll (pointer back in neutral zone) or when the scroll boundary
+		// is reached. Full cleanup happens in CleanupDragState when the drag ends.
+		HideInsertionIndicator();
+	}
+
+	void ScrollViewer_Drop(object sender, UI.Xaml.DragEventArgs e)
+	{
+		if (!_canReorderItems || _draggedItem is null || _insertionIndex < 0 || _mauiVirtualView is null)
+		{
+			CleanupDragState();
+			return;
+		}
+
+		bool isGrouped = _mauiVirtualView is GroupableItemsView giv && giv.IsGrouped;
+
+		if (isGrouped)
+		{
+			if (_mauiVirtualView.ItemsSource is not IList groupsList)
+			{
 				CleanupDragState();
 				return;
 			}
-			
-			System.Diagnostics.Debug.WriteLine($"  Proceeding with reorder...");
-			
+
 			try
 			{
-				bool reordered = PerformReorder(itemsList);
-				
-				System.Diagnostics.Debug.WriteLine($"  Reorder result: {reordered}");
-				
+				bool reordered = PerformGroupedReorder(groupsList);
 				if (reordered)
 				{
 					ReorderCompleted?.Invoke(this, EventArgs.Empty);
@@ -257,391 +616,991 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 				CleanupDragState();
 			}
 		}
-
-		#endregion
-
-		#region Reordering Logic
-
-		bool PerformReorder(IList itemsList)
+		else
 		{
-			if (_draggedItem is null)
+			if (_mauiVirtualView.ItemsSource is IList itemsList)
 			{
-				System.Diagnostics.Debug.WriteLine($"  PerformReorder: _draggedItem is null");
-				return false;
-			}
-			
-			int oldIndex = IndexOfItem(_draggedItem, itemsList);
-			System.Diagnostics.Debug.WriteLine($"  PerformReorder: oldIndex={oldIndex}, _insertionIndex={_insertionIndex}");
-			
-			if (oldIndex < 0)
-			{
-				System.Diagnostics.Debug.WriteLine($"  PerformReorder: oldIndex < 0");
-				return false;
-			}
-			
-			int adjustedInsertionIndex = _insertionIndex;
-			
-			if (oldIndex < adjustedInsertionIndex)
-			{
-				adjustedInsertionIndex--;
-				System.Diagnostics.Debug.WriteLine($"  Adjusted insertion index: {adjustedInsertionIndex}");
-			}
-			
-			if (oldIndex == adjustedInsertionIndex)
-			{
-				System.Diagnostics.Debug.WriteLine($"  Same position - no reorder needed");
-				return false;
-			}
-			
-			// Store the wrapper object (ItemTemplateContext2), not the unwrapped item
-			var wrapperToMove = itemsList[oldIndex];
-			System.Diagnostics.Debug.WriteLine($"  Moving wrapper from {oldIndex} to {adjustedInsertionIndex}");
-			
-			itemsList.RemoveAt(oldIndex);
-			adjustedInsertionIndex = Math.Clamp(adjustedInsertionIndex, 0, itemsList.Count);
-			itemsList.Insert(adjustedInsertionIndex, wrapperToMove);
-			
-			System.Diagnostics.Debug.WriteLine($"  Reorder complete - final index: {adjustedInsertionIndex}");
-			
-			DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
-			{
-				_itemsRepeater?.UpdateLayout();
-				UpdateAllContainerIndices();
-
-				var container = FindContainerByIndex(adjustedInsertionIndex);
-				container?.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = true });
-			});
-			
-			return true;
-		}
-
-		#endregion
-
-		#region Container and Item Management
-
-		FrameworkElement? FindContainerUnderPointer(UI.Xaml.DragEventArgs e)
-		{
-			if (_itemsRepeater is null)
-				return null;
-			
-			var position = e.GetPosition(_itemsRepeater);
-			
-			var elements = VisualTreeHelper.FindElementsInHostCoordinates(
-				_itemsRepeater.TransformToVisual(null).TransformPoint(position),
-				_itemsRepeater,
-				false);
-			
-			foreach (var element in elements)
-			{
-				if (element is ItemContainer itemContainer && itemContainer.Tag is int)
+				try
 				{
-					return itemContainer;
-				}
-			}
-			
-			// Fallback: find by position
-			if (ItemsSource is IList itemsList && itemsList.Count > 0)
-			{
-				var allContainers = FindAllContainers().ToList();
-				
-				foreach (var container in allContainers)
-				{
-					try
+					// Visual-only shuffle never mutates the collection during drag.
+					// Always call PerformReorder here to commit the actual move.
+					bool reordered = PerformReorder(itemsList);
+
+					if (reordered)
 					{
-						var containerPosition = container.TransformToVisual(_itemsRepeater).TransformPoint(new global::Windows.Foundation.Point(0, 0));
-						
-						bool isInBounds;
-						if (_isHorizontalLayout)
-						{
-							isInBounds = position.X >= containerPosition.X && 
-										position.X <= containerPosition.X + container.ActualWidth;
-						}
-						else
-						{
-							isInBounds = position.Y >= containerPosition.Y && 
-										position.Y <= containerPosition.Y + container.ActualHeight;
-						}
-						
-						if (isInBounds)
-							return container;
+						ReorderCompleted?.Invoke(this, EventArgs.Empty);
 					}
-					catch { }
 				}
-				
-				// Return last container if pointer is beyond all containers
-				if (allContainers.Count > 0)
+				finally
 				{
-					var lastContainer = allContainers.Last();
-					var lastPos = lastContainer.TransformToVisual(_itemsRepeater).TransformPoint(new global::Windows.Foundation.Point(0, 0));
-					
-					bool isBeyondLast;
-					if (_isHorizontalLayout)
-					{
-						isBeyondLast = position.X > lastPos.X + lastContainer.ActualWidth;
-					}
-					else
-					{
-						isBeyondLast = position.Y > lastPos.Y + lastContainer.ActualHeight;
-					}
-					
-					if (isBeyondLast)
-						return lastContainer;
+					CleanupDragState();
 				}
 			}
-			
-			return null;
-		}
-		
-		FrameworkElement? FindContainerByIndex(int index)
-		{
-			if (ItemsSource is not IList itemsList || index < 0 || index >= itemsList.Count)
-				return null;
-			
-			return FindAllContainers().FirstOrDefault(c => GetContainerIndex(c) == index);
-		}
-		
-		IEnumerable<FrameworkElement> FindAllContainers()
-		{
-			if (_itemsRepeater is not null && ItemsSource is IList itemsList)
+			else if (_mauiVirtualView.ItemsSource is IEnumerable itemsEnumerable)
 			{
-				for (int i = 0; i < itemsList.Count; i++)
+				// For plain IEnumerable sources (non-IList), materialize into a new
+				// list, reorder it, then reassign ItemsSource so the change propagates
+				// back through the normal data-binding pipeline.
+				try
 				{
-					var container = _itemsRepeater.TryGetElement(i);
-					if (container is FrameworkElement fe)
-						yield return fe;
+					var materializedList = new System.Collections.Generic.List<object?>(itemsEnumerable.Cast<object?>());
+					bool reordered = PerformReorder(materializedList);
+					if (reordered)
+					{
+						_mauiVirtualView.ItemsSource = materializedList;
+						ReorderCompleted?.Invoke(this, EventArgs.Empty);
+					}
 				}
-			}
-		}
-		
-		int GetContainerIndex(FrameworkElement container)
-		{
-			if (container.Tag is int index)
-				return index;
-			
-			var allContainers = FindAllContainers().ToList();
-			return allContainers.IndexOf(container);
-		}
-		
-		int IndexOfItem(object item, IList itemsList)
-		{
-			for (int i = 0; i < itemsList.Count; i++)
-			{
-				var currentItem = GetItemAtIndex(i, itemsList);
-				if (Equals(currentItem, item))
-					return i;
-			}
-			return -1;
-		}
-		
-		object? GetItemAtIndex(int index, IList itemsList)
-		{
-			var item = itemsList[index];
-			
-			if (item is ItemTemplateContext2 itc)
-				return itc.Item;
-			
-			return item;
-		}
-
-		void UpdateAllContainerIndices()
-		{
-			if (ItemsSource is not IList itemsList)
-				return;
-
-			var containers = FindAllContainers().ToList();
-
-			for (int i = 0; i < containers.Count && i < itemsList.Count; i++)
-			{
-				var container = containers[i];
-				container.Tag = i;
-			}
-		}
-
-		#endregion
-
-		#region Cleanup
-
-		void CleanupDragState()
-		{
-			_draggedItem = null;
-			_insertionIndex = -1;
-			_insertAfter = false;
-			StopAutoScroll();
-		}
-
-		#endregion
-
-		#region Auto-Scroll During Drag
-
-		void HandleAutoScroll(UI.Xaml.DragEventArgs e)
-		{
-			if (_scrollView is null)
-				return;
-
-			var position = e.GetPosition(_scrollView);
-
-			if (_isHorizontalLayout)
-			{
-				HandleHorizontalAutoScroll(position);
+				finally
+				{
+					CleanupDragState();
+				}
 			}
 			else
 			{
-				HandleVerticalAutoScroll(position);
+				CleanupDragState();
+			}
+		}
+	}
+
+	#endregion
+
+	#region Reordering Logic
+
+	bool PerformReorder(IList itemsList)
+	{
+		if (_draggedItem is null)
+		{
+			return false;
+		}
+
+		int oldIndex = IndexOfItem(_draggedItem, itemsList);
+		if (oldIndex < 0)
+		{
+			return false;
+		}
+
+		int adjustedInsertionIndex = _insertionIndex;
+		if (oldIndex < adjustedInsertionIndex)
+		{
+			adjustedInsertionIndex--;
+		}
+
+		if (oldIndex == adjustedInsertionIndex)
+		{
+			return false;
+		}
+
+		// Prefer Move over RemoveAt + Insert.
+		//
+		// RemoveAt fires CollectionChanged(Remove) → ObservableItemTemplateCollection2 relays it to
+		// ItemsRepeater which *recycles* the container at that index.
+		// Insert fires CollectionChanged(Add)    → ItemsRepeater *creates a brand-new* container,
+		// re-binds the item from scratch, and may scroll to bring the new item into view.
+		//
+		// ObservableCollection<T>.Move fires a *single* CollectionChanged(Move) event.
+		// ObservableItemTemplateCollection2.InnerCollectionChanged relays this as a single Move
+		// on itself, which ItemsRepeater handles by repositioning the *existing* container without
+		// recycling it — no item refresh, no scroll position reset.
+		//
+		// Additionally, IsReordering suppresses ItemsUpdatingScrollMode adjustments in
+		// ItemsViewHandler2.ItemsChanged. CollectionViewSource may convert the Move event
+		// to VectorChanged(Reset), which would otherwise cause StartBringItemIntoView(0)
+		// to fire and scroll the list back to the top.
+		IsReordering = true;
+		try
+		{
+			if (!TryMoveObservableCollection(itemsList, oldIndex, adjustedInsertionIndex))
+			{
+				// Fallback for plain IList sources that don't expose Move.
+				var itemToMove = itemsList[oldIndex];
+				itemsList.RemoveAt(oldIndex);
+				adjustedInsertionIndex = Math.Clamp(adjustedInsertionIndex, 0, itemsList.Count);
+				itemsList.Insert(adjustedInsertionIndex, itemToMove);
+			}
+		}
+		finally
+		{
+			IsReordering = false;
+		}
+
+		DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+		{
+			ItemsRepeaterControl?.UpdateLayout();
+			UpdateAllContainerIndices();
+		});
+
+		return true;
+	}
+
+	/// <summary>
+	/// Performs a reorder operation on grouped data, respecting CanMixGroups.
+	/// Maps the flat insertion index to the correct group and position within the group.
+	/// Groups that implement only IEnumerable (not IList) are traversed for item lookup
+	/// but cannot be mutated — a reorder into or out of such a group returns false.
+	/// </summary>
+	bool PerformGroupedReorder(IList groupsList)
+	{
+		if (_draggedItem is null || _mauiVirtualView is not GroupableItemsView groupableView)
+		{
+			return false;
+		}
+
+		bool hasHeaders = groupableView.GroupHeaderTemplate is not null;
+		bool hasFooters = groupableView.GroupFooterTemplate is not null;
+
+		// Find which group the dragged item belongs to.
+		// Groups may be IEnumerable-only (e.g., IGrouping<K,V>), so enumerate rather
+		// than requiring IList for the search. IList is still required for mutation.
+		int sourceGroupIndex = -1;
+		int sourceItemIndex = -1;
+		IList? sourceGroup = null;
+
+		for (int g = 0; g < groupsList.Count; g++)
+		{
+			if (groupsList[g] is not IEnumerable groupItems)
+			{
+				continue;
+			}
+
+			int i = 0;
+			foreach (var groupItem in groupItems)
+			{
+				if (ReferenceEquals(groupItem, _draggedItem) || Equals(groupItem, _draggedItem))
+				{
+					sourceGroupIndex = g;
+					sourceItemIndex = i;
+					sourceGroup = groupsList[g] as IList;
+					break;
+				}
+
+				i++;
+			}
+
+			if (sourceGroupIndex >= 0)
+			{
+				break;
 			}
 		}
 
-		void HandleVerticalAutoScroll(global::Windows.Foundation.Point position)
+		// sourceGroup being null means the group is not mutable — reorder not possible.
+		if (sourceGroupIndex < 0 || sourceItemIndex < 0 || sourceGroup is null)
 		{
-			if (_scrollView is null)
-				return;
+			return false;
+		}
 
-			var height = _scrollView.ActualHeight;
-			var distanceFromTop = position.Y;
-			var distanceFromBottom = height - position.Y;
+		// Map the flat _insertionIndex to a target group and position within that group.
+		int targetGroupIndex = -1;
+		int targetItemIndex = -1;
+		IList? targetGroup = null;
+		int flatPos = 0;
 
-			// Check if near top edge
-			if (distanceFromTop < AutoScrollThreshold && _scrollView.ScrollPresenter.VerticalOffset > 0)
+		for (int g = 0; g < groupsList.Count; g++)
+		{
+			if (groupsList[g] is not IEnumerable groupItems)
 			{
-				// Calculate velocity based on distance from edge (closer = faster)
-				var normalizedDistance = 1.0 - (distanceFromTop / AutoScrollThreshold);
-				_targetScrollVelocity = -(AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed)));
-				StartAutoScroll();
+				continue;
 			}
-			// Check if near bottom edge
-			else if (distanceFromBottom < AutoScrollThreshold &&
-					 _scrollView.ScrollPresenter.VerticalOffset < _scrollView.ScrollPresenter.ScrollableHeight)
+
+			// Use ICollection.Count when available (O(1)); otherwise enumerate (O(n)).
+			int groupItemCount = groupsList[g] is ICollection coll
+				? coll.Count
+				: groupItems.Cast<object>().Count();
+
+			int groupStart = flatPos;
+
+			if (hasHeaders)
 			{
-				// Calculate velocity based on distance from edge (closer = faster)
-				var normalizedDistance = 1.0 - (distanceFromBottom / AutoScrollThreshold);
-				_targetScrollVelocity = AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed));
-				StartAutoScroll();
+				flatPos++; // skip header
 			}
-			else
+
+			int itemsStart = flatPos;
+			flatPos += groupItemCount;
+
+			if (hasFooters)
 			{
-				// Not in auto-scroll zone
-				_targetScrollVelocity = 0;
-				if (Math.Abs(_currentScrollVelocity) < 0.1)
+				flatPos++; // skip footer
+			}
+
+			if (_insertionIndex >= itemsStart && _insertionIndex <= itemsStart + groupItemCount)
+			{
+				targetGroupIndex = g;
+				targetItemIndex = _insertionIndex - itemsStart;
+				targetGroup = groupsList[g] as IList;
+				break;
+			}
+
+			if (hasHeaders && _insertionIndex == groupStart)
+			{
+				targetGroupIndex = g;
+				targetItemIndex = 0;
+				targetGroup = groupsList[g] as IList;
+				break;
+			}
+		}
+
+		// If we didn't find a target (e.g., dragged past the end), use the last group.
+		if (targetGroup is null && groupsList.Count > 0)
+		{
+			for (int g = groupsList.Count - 1; g >= 0; g--)
+			{
+				if (groupsList[g] is IEnumerable groupItems)
 				{
-					StopAutoScroll();
+					int groupItemCount = groupsList[g] is ICollection coll
+						? coll.Count
+						: groupItems.Cast<object>().Count();
+
+					targetGroupIndex = g;
+					targetItemIndex = groupItemCount;
+					targetGroup = groupsList[g] as IList;
+					break;
 				}
 			}
 		}
 
-		void HandleHorizontalAutoScroll(global::Windows.Foundation.Point position)
+		if (targetGroup is null || targetGroupIndex < 0)
 		{
-			if (_scrollView is null)
-				return;
+			return false;
+		}
 
-			var width = _scrollView.ActualWidth;
-			var distanceFromLeft = position.X;
-			var distanceFromRight = width - position.X;
-
-			// Check if near left edge
-			if (distanceFromLeft < AutoScrollThreshold && _scrollView.ScrollPresenter.HorizontalOffset > 0)
+		// Honor CanMixGroups: reject cross-group moves when disabled.
+		if (sourceGroupIndex != targetGroupIndex)
+		{
+			if (_mauiVirtualView is ReorderableItemsView riv && !riv.CanMixGroups)
 			{
-				// Calculate velocity based on distance from edge (closer = faster)
-				var normalizedDistance = 1.0 - (distanceFromLeft / AutoScrollThreshold);
-				_targetScrollVelocity = -(AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed)));
-				StartAutoScroll();
-			}
-			// Check if near right edge
-			else if (distanceFromRight < AutoScrollThreshold &&
-					 _scrollView.ScrollPresenter.HorizontalOffset < _scrollView.ScrollPresenter.ScrollableWidth)
-			{
-				// Calculate velocity based on distance from edge (closer = faster)
-				var normalizedDistance = 1.0 - (distanceFromRight / AutoScrollThreshold);
-				_targetScrollVelocity = AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed));
-				StartAutoScroll();
-			}
-			else
-			{
-				// Not in auto-scroll zone
-				_targetScrollVelocity = 0;
-				if (Math.Abs(_currentScrollVelocity) < 0.1)
-				{
-					StopAutoScroll();
-				}
+				return false;
 			}
 		}
 
-		double CalculateScrollVelocity(double edgeDistance)
+		if (sourceGroupIndex == targetGroupIndex)
 		{
-			// Linear interpolation: closer to edge = faster scroll
-			var normalizedDistance = Math.Min(edgeDistance / AutoScrollThreshold, 1.0);
-			return normalizedDistance * AutoScrollMaxSpeed;
-		}
-
-		void StartAutoScroll()
-		{
-			if (_autoScrollTimer?.IsRunning == false)
+			int adjustedTargetIndex = targetItemIndex;
+			if (sourceItemIndex < adjustedTargetIndex)
 			{
-				_autoScrollTimer.Start();
-			}
-			else if (_autoScrollTimer is null)
-			{
-				_autoScrollTimer = DispatcherQueue.CreateTimer();
-				_autoScrollTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60fps
-				_autoScrollTimer.Tick += AutoScrollTimer_Tick;
-				_autoScrollTimer.Start();
-			}
-		}
-
-		void StopAutoScroll()
-		{
-			_autoScrollTimer?.Stop();
-			_targetScrollVelocity = 0;
-			_currentScrollVelocity = 0;
-		}
-
-		void AutoScrollTimer_Tick(object? sender, object e)
-		{
-			if (_scrollView is null)
-			{
-				StopAutoScroll();
-				return;
+				adjustedTargetIndex--;
 			}
 
-			// Smooth acceleration/deceleration using linear interpolation
-			_currentScrollVelocity = Lerp(_currentScrollVelocity, _targetScrollVelocity, ScrollAcceleration);
-
-			// Only scroll if velocity is significant
-			if (Math.Abs(_currentScrollVelocity) < 0.01)
+			if (sourceItemIndex == adjustedTargetIndex)
 			{
-				if (_targetScrollVelocity == 0)
-				{
-					StopAutoScroll();
-				}
-				return;
+				return false;
 			}
 
+			IsReordering = true;
 			try
 			{
-				// Calculate new offset based on orientation
-				double newOffset;
+				// Use Move when possible to fire a single CollectionChanged(Move) event,
+				// preventing ItemsRepeater from recycling containers and resetting scroll.
+				if (!TryMoveObservableCollection(sourceGroup, sourceItemIndex, adjustedTargetIndex))
+				{
+					var item = sourceGroup[sourceItemIndex];
+					sourceGroup.RemoveAt(sourceItemIndex);
+					adjustedTargetIndex = Math.Clamp(adjustedTargetIndex, 0, sourceGroup.Count);
+					sourceGroup.Insert(adjustedTargetIndex, item);
+				}
+			}
+			finally
+			{
+				IsReordering = false;
+			}
+		}
+		else
+		{
+			IsReordering = true;
+			try
+			{
+				var item = sourceGroup[sourceItemIndex];
+				sourceGroup.RemoveAt(sourceItemIndex);
+				targetItemIndex = Math.Clamp(targetItemIndex, 0, targetGroup.Count);
+				targetGroup.Insert(targetItemIndex, item);
+			}
+			finally
+			{
+				IsReordering = false;
+			}
+		}
+
+		DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+		{
+			ItemsRepeaterControl?.UpdateLayout();
+			UpdateAllContainerIndices();
+		});
+
+		return true;
+	}
+
+	#endregion
+
+	#region Container and Item Management
+
+	IList? GetSourceList()
+	{
+		// Prefer the WinUI-side bound source so indices map to realized containers.
+		if (ItemsSource is IList list)
+		{
+			return list;
+		}
+
+		var mauiSource = _mauiVirtualView?.ItemsSource;
+		if (mauiSource is IList mauiList)
+		{
+			return mauiList;
+		}
+
+		// For plain IEnumerable sources (non-IList), materialize a snapshot so that
+		// all index/count operations (wiring affordances, finding containers, etc.)
+		// work correctly. This snapshot is read-only — mutation reassigns ItemsSource
+		// directly in ScrollViewer_Drop for IEnumerable sources.
+		if (mauiSource is IEnumerable enumerable)
+		{
+			return enumerable.Cast<object>().ToList();
+		}
+
+		return null;
+	}
+
+	FrameworkElement? FindContainerUnderPointer(UI.Xaml.DragEventArgs e)
+	{
+		var repeater = ItemsRepeaterControl;
+		if (repeater is null)
+		{
+			return null;
+		}
+
+		var position = e.GetPosition(repeater);
+
+		var elements = VisualTreeHelper.FindElementsInHostCoordinates(
+			repeater.TransformToVisual(null).TransformPoint(position),
+			repeater,
+			false);
+
+		foreach (var element in elements)
+		{
+			if (element is ItemContainer itemContainer &&
+				itemContainer.Tag is int &&
+				!ReferenceEquals(itemContainer, _sourceContainer))
+			{
+				return itemContainer;
+			}
+		}
+
+		// Fallback: find by axis-aligned position.
+		var sourceList = GetSourceList();
+		if (sourceList is not null && sourceList.Count > 0)
+		{
+			var allContainers = FindAllContainers().ToList();
+
+			foreach (var container in allContainers)
+			{
+				// Skip the invisible source container — its layout slot is occupied
+				// but should not be a valid drop target while the drag is active.
+				if (ReferenceEquals(container, _sourceContainer))
+				{
+					continue;
+				}
+
+				var containerPosition = container.TransformToVisual(repeater).TransformPoint(new global::Windows.Foundation.Point(0, 0));
+
+				bool isInBounds;
 				if (_isHorizontalLayout)
 				{
-					newOffset = _scrollView.ScrollPresenter.HorizontalOffset + _currentScrollVelocity;
-					newOffset = Math.Clamp(newOffset, 0, _scrollView.ScrollPresenter.ScrollableWidth);
-					_scrollView.ScrollPresenter.ScrollTo(newOffset, _scrollView.ScrollPresenter.VerticalOffset);
+					isInBounds = position.X >= containerPosition.X &&
+								 position.X <= containerPosition.X + container.ActualWidth;
 				}
 				else
 				{
-					newOffset = _scrollView.ScrollPresenter.VerticalOffset + _currentScrollVelocity;
-					newOffset = Math.Clamp(newOffset, 0, _scrollView.ScrollPresenter.ScrollableHeight);
-					_scrollView.ScrollPresenter.ScrollTo(_scrollView.ScrollPresenter.HorizontalOffset, newOffset);
+					isInBounds = position.Y >= containerPosition.Y &&
+								 position.Y <= containerPosition.Y + container.ActualHeight;
+				}
+
+				if (isInBounds)
+				{
+					return container;
 				}
 			}
-			catch
+
+			if (allContainers.Count > 0)
+			{
+				var lastContainer = allContainers[allContainers.Count - 1];
+				var lastPos = lastContainer.TransformToVisual(repeater).TransformPoint(new global::Windows.Foundation.Point(0, 0));
+
+				bool isBeyondLast = _isHorizontalLayout
+					? position.X > lastPos.X + lastContainer.ActualWidth
+					: position.Y > lastPos.Y + lastContainer.ActualHeight;
+
+				if (isBeyondLast)
+				{
+					return lastContainer;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	FrameworkElement? FindContainerByIndex(int index)
+	{
+		var repeater = ItemsRepeaterControl;
+		int flatCount = repeater?.ItemsSourceView?.Count ?? 0;
+		if (index < 0 || index >= flatCount)
+		{
+			return null;
+		}
+
+		return FindAllContainers().FirstOrDefault(c => GetContainerIndex(c) == index);
+	}
+
+	/// <summary>
+	/// Finds the realized container whose binding context equals <paramref name="targetItem"/>
+	/// by identity. Unlike <see cref="FindContainerByIndex"/>, this is safe to call from
+	/// an async callback because it does not rely on a captured index that may have been
+	/// invalidated by a subsequent collection change.
+	/// </summary>
+	FrameworkElement? FindContainerByItem(object? targetItem)
+	{
+		if (targetItem is null)
+		{
+			return null;
+		}
+
+		// Prefer reference equality so duplicate value-equal items resolve to the
+		// correct container. Fall back to value equality for value types.
+		FrameworkElement? valueEqualFallback = null;
+		foreach (var container in FindAllContainers())
+		{
+			var item = GetContainerItem(container);
+			if (ReferenceEquals(item, targetItem))
+			{
+				return container;
+			}
+
+			if (valueEqualFallback is null && Equals(item, targetItem))
+			{
+				valueEqualFallback = container;
+			}
+		}
+
+		return valueEqualFallback;
+	}
+
+	IEnumerable<FrameworkElement> FindAllContainers()
+	{
+		var repeater = ItemsRepeaterControl;
+		// Use ItemsSourceView.Count (the repeater's own flat count) rather than
+		// GetSourceList().Count. For grouped lists GetSourceList() returns the
+		// MAUI-side groups collection (count = number of groups), whereas
+		// ItemsSourceView.Count is the full flat count — headers + items + footers
+		// — which maps correctly to TryGetElement(i) repeater indices.
+		int count = repeater?.ItemsSourceView?.Count ?? 0;
+		if (repeater is not null && count > 0)
+		{
+			for (int i = 0; i < count; i++)
+			{
+				var container = repeater.TryGetElement(i);
+				if (container is FrameworkElement fe)
+				{
+					yield return fe;
+				}
+			}
+		}
+	}
+
+	object? GetContainerItem(FrameworkElement container)
+	{
+		if (container is ItemContainer itemContainer &&
+			itemContainer.Child is ElementWrapper wrapper &&
+			wrapper.VirtualView is View view)
+		{
+			return view.BindingContext;
+		}
+
+		return null;
+	}
+
+	int GetContainerIndex(FrameworkElement container)
+	{
+		var sourceList = GetSourceList();
+		var containerItem = GetContainerItem(container);
+
+		// Prefer the Tag set during ElementPrepared — it is the authoritative flat
+		// index and avoids the ambiguity where group headers and footers share the
+		// same underlying Item (the group object). Validate the tag by checking that
+		// the item at that index still matches the container's current item.
+		if (container.Tag is int tagIndex && sourceList is not null &&
+			tagIndex >= 0 && tagIndex < sourceList.Count)
+		{
+			var tagItem = GetItemAtIndex(tagIndex, sourceList);
+			if (containerItem is not null && Equals(tagItem, containerItem))
+			{
+				return tagIndex;
+			}
+		}
+
+		// Tag is stale — fall back to a linear search.
+		if (sourceList is not null && containerItem is not null)
+		{
+			var liveIndex = IndexOfItem(containerItem, sourceList);
+			if (liveIndex >= 0)
+			{
+				return liveIndex;
+			}
+		}
+
+		// Last resort: use the raw tag even if unvalidated.
+		if (container.Tag is int index)
+		{
+			return index;
+		}
+
+		var allContainers = FindAllContainers().ToList();
+		return allContainers.IndexOf(container);
+	}
+
+	int IndexOfItem(object item, IList itemsList)
+	{
+		// First pass: reference equality — correctly distinguishes two items that are
+		// value-equal but distinct objects (e.g., duplicate records in the list).
+		for (int i = 0; i < itemsList.Count; i++)
+		{
+			var currentItem = GetItemAtIndex(i, itemsList);
+			if (ReferenceEquals(currentItem, item))
+			{
+				return i;
+			}
+		}
+
+		// Second pass: value equality fallback for value types (structs, primitives)
+		// where ReferenceEquals is always false.
+		for (int i = 0; i < itemsList.Count; i++)
+		{
+			var currentItem = GetItemAtIndex(i, itemsList);
+			if (Equals(currentItem, item))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	object? GetItemAtIndex(int index, IList itemsList)
+	{
+		var item = itemsList[index];
+
+		if (item is ItemTemplateContext2 itc)
+		{
+			return itc.Item;
+		}
+
+		return item;
+	}
+
+	void UpdateAllContainerIndices()
+	{
+		var sourceList = GetSourceList();
+		if (sourceList is null)
+		{
+			return;
+		}
+
+		// Derive each container's Tag from its item's actual position in the source.
+		// A positional loop (containers[i].Tag = i) is wrong when ItemsRepeater
+		// virtualizes: FindAllContainers skips unrealized slots, so containers[i]
+		// does not necessarily correspond to sourceList[i].
+		foreach (var container in FindAllContainers())
+		{
+			var item = GetContainerItem(container);
+			if (item is not null)
+			{
+				int actualIndex = IndexOfItem(item, sourceList);
+				if (actualIndex >= 0)
+				{
+					container.Tag = actualIndex;
+				}
+			}
+		}
+	}
+
+	#endregion
+
+	#region Cleanup
+
+	void CleanupDragState()
+	{
+		// Hide insertion indicator before restoring containers.
+		HideInsertionIndicator();
+
+		// Restore the source container synchronously in case DropCompleted does not
+		// fire (e.g. drop handled outside the source element, or disconnect).
+		if (_sourceContainer is not null)
+		{
+			// Remove ghost appearance defensively — the deferred block in DragStarting
+			// may not have run yet if drag was cancelled immediately.
+			RemoveDragGhostAppearance(_sourceContainer);
+			_sourceContainer.Opacity = 1;
+			_sourceContainer.IsHitTestVisible = true;
+			_sourceContainer.DropCompleted -= ItemContainer_DropCompleted;
+			_sourceContainer = null;
+		}
+
+		// Restore all dimmed containers.
+		RestoreAllContainerOpacity();
+
+		_draggedItem = null;
+		_insertionIndex = -1;
+		_insertAfter = false;
+		IsReordering = false;
+		StopAutoScroll();
+	}
+
+	#endregion
+
+	#region Auto-Scroll During Drag
+
+	void HandleAutoScroll(UI.Xaml.DragEventArgs e)
+	{
+		if (_scrollViewer is null)
+		{
+			return;
+		}
+
+		var position = e.GetPosition(_scrollViewer);
+
+		if (_isHorizontalLayout)
+		{
+			HandleHorizontalAutoScroll(position);
+		}
+		else
+		{
+			HandleVerticalAutoScroll(position);
+		}
+	}
+
+	void HandleVerticalAutoScroll(global::Windows.Foundation.Point position)
+	{
+		if (_scrollViewer is null)
+		{
+			return;
+		}
+
+		var height = _scrollViewer.ActualHeight;
+		var distanceFromTop = position.Y;
+		var distanceFromBottom = height - position.Y;
+
+		if (distanceFromTop < AutoScrollThreshold && _scrollViewer.VerticalOffset > 0)
+		{
+			var normalizedDistance = 1.0 - (distanceFromTop / AutoScrollThreshold);
+			_targetScrollVelocity = -(AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed)));
+			StartAutoScroll();
+		}
+		else if (distanceFromBottom < AutoScrollThreshold &&
+				 _scrollViewer.VerticalOffset < _scrollViewer.ScrollableHeight)
+		{
+			var normalizedDistance = 1.0 - (distanceFromBottom / AutoScrollThreshold);
+			_targetScrollVelocity = AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed));
+			StartAutoScroll();
+		}
+		else
+		{
+			_targetScrollVelocity = 0;
+			if (Math.Abs(_currentScrollVelocity) < 0.1)
 			{
 				StopAutoScroll();
 			}
 		}
+	}
 
-		static double Lerp(double start, double end, double amount)
+	void HandleHorizontalAutoScroll(global::Windows.Foundation.Point position)
+	{
+		if (_scrollViewer is null)
 		{
-			return start + (end - start) * amount;
+			return;
 		}
 
-		#endregion
+		var width = _scrollViewer.ActualWidth;
+		var distanceFromLeft = position.X;
+		var distanceFromRight = width - position.X;
+
+		if (distanceFromLeft < AutoScrollThreshold && _scrollViewer.HorizontalOffset > 0)
+		{
+			var normalizedDistance = 1.0 - (distanceFromLeft / AutoScrollThreshold);
+			_targetScrollVelocity = -(AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed)));
+			StartAutoScroll();
+		}
+		else if (distanceFromRight < AutoScrollThreshold &&
+				 _scrollViewer.HorizontalOffset < _scrollViewer.ScrollableWidth)
+		{
+			var normalizedDistance = 1.0 - (distanceFromRight / AutoScrollThreshold);
+			_targetScrollVelocity = AutoScrollMinSpeed + (normalizedDistance * (AutoScrollMaxSpeed - AutoScrollMinSpeed));
+			StartAutoScroll();
+		}
+		else
+		{
+			_targetScrollVelocity = 0;
+			if (Math.Abs(_currentScrollVelocity) < 0.1)
+			{
+				StopAutoScroll();
+			}
+		}
 	}
+
+	void StartAutoScroll()
+	{
+		if (_autoScrollTimer is null)
+		{
+			_autoScrollTimer = DispatcherQueue.CreateTimer();
+			_autoScrollTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60fps
+			_autoScrollTimer.Tick += AutoScrollTimer_Tick;
+			_autoScrollTimer.Start();
+		}
+		else if (!_autoScrollTimer.IsRunning)
+		{
+			_autoScrollTimer.Start();
+		}
+	}
+
+	void StopAutoScroll()
+	{
+		_autoScrollTimer?.Stop();
+		_targetScrollVelocity = 0;
+		_currentScrollVelocity = 0;
+	}
+
+	void AutoScrollTimer_Tick(object? sender, object e)
+	{
+		// Cache to a local so that a concurrent DisconnectHandler nulling _scrollViewer
+		// cannot produce a NullReferenceException between the null-check and ChangeView.
+		var scrollViewer = _scrollViewer;
+		if (scrollViewer is null)
+		{
+			StopAutoScroll();
+			return;
+		}
+
+		_currentScrollVelocity = Lerp(_currentScrollVelocity, _targetScrollVelocity, ScrollAcceleration);
+
+		if (Math.Abs(_currentScrollVelocity) < 0.01)
+		{
+			if (_targetScrollVelocity == 0)
+			{
+				StopAutoScroll();
+			}
+			return;
+		}
+
+		double newOffset;
+		if (_isHorizontalLayout)
+		{
+			newOffset = scrollViewer.HorizontalOffset + _currentScrollVelocity;
+			// Stop accelerating when the boundary is reached so the timer
+			// decelerates and stops instead of spinning at max offset.
+			if (newOffset <= 0 || newOffset >= scrollViewer.ScrollableWidth)
+				_targetScrollVelocity = 0;
+			newOffset = Math.Clamp(newOffset, 0, scrollViewer.ScrollableWidth);
+			scrollViewer.ChangeView(newOffset, scrollViewer.VerticalOffset, null, disableAnimation: true);
+		}
+		else
+		{
+			newOffset = scrollViewer.VerticalOffset + _currentScrollVelocity;
+			// Stop accelerating when the boundary is reached.
+			if (newOffset <= 0 || newOffset >= scrollViewer.ScrollableHeight)
+				_targetScrollVelocity = 0;
+			newOffset = Math.Clamp(newOffset, 0, scrollViewer.ScrollableHeight);
+			scrollViewer.ChangeView(scrollViewer.HorizontalOffset, newOffset, null, disableAnimation: true);
+		}
+	}
+
+	static double Lerp(double start, double end, double amount)
+	{
+		return start + (end - start) * amount;
+	}
+
+	#endregion
+
+	#region Drop Target Indicator
+
+	/// <summary>
+	/// Shows a 2 px accent-coloured line on <see cref="_dropIndicatorCanvas"/> at the
+	/// boundary between items — "insert before <paramref name="target"/>" or "insert
+	/// after <paramref name="target"/>".  The line is positioned in the canvas coordinate
+	/// space so it is always correct regardless of scroll position.
+	/// </summary>
+	void UpdateInsertionIndicator(ItemContainer target, bool insertAfter)
+	{
+		if (_dropIndicatorHead is null || _dropIndicatorLine is null)
+			return;
+
+		// Skip the source slot itself.
+		if (ReferenceEquals(target, _sourceContainer))
+		{
+			HideInsertionIndicator();
+			return;
+		}
+
+		// ── Calculate position in canvas coordinates ──────────────────────────
+		var origin = target.TransformToVisual(_dropIndicatorCanvas)
+			.TransformPoint(new Windows.Foundation.Point(0, 0));
+
+		if (_isHorizontalLayout)
+		{
+			// Vertical indicator: hollow circle at top-center, line extending downward.
+			double lineX = insertAfter
+				? origin.X + target.ActualWidth
+				: origin.X;
+
+			double lineHeight = target.ActualHeight - IndicatorHeadSize - IndicatorHeadGap;
+			if (lineHeight < 0) lineHeight = 0;
+
+			// Head at top-center of the insertion edge.
+			Canvas.SetLeft(_dropIndicatorHead, lineX - IndicatorHeadSize / 2);
+			Canvas.SetTop(_dropIndicatorHead, origin.Y);
+
+			// Line: starts below the head, centered on the insertion edge.
+			_dropIndicatorLine.Width = IndicatorLineThickness;
+			_dropIndicatorLine.Height = lineHeight;
+			Canvas.SetLeft(_dropIndicatorLine, lineX - IndicatorLineThickness / 2);
+			Canvas.SetTop(_dropIndicatorLine, origin.Y + IndicatorHeadSize + IndicatorHeadGap);
+		}
+		else
+		{
+			// Horizontal indicator: hollow circle on left, line extending to the right edge.
+			double lineY = insertAfter
+				? origin.Y + target.ActualHeight
+				: origin.Y;
+
+			// Circle sits at the left edge of the item; line fills the remaining width.
+			double lineWidth = target.ActualWidth - IndicatorHeadSize - IndicatorHeadGap;
+			if (lineWidth < 0) lineWidth = 0;
+
+			// Head: vertically centered on the insertion line, pinned to item left edge.
+			Canvas.SetLeft(_dropIndicatorHead, origin.X);
+			Canvas.SetTop(_dropIndicatorHead, lineY - IndicatorHeadSize / 2);
+
+			// Line: immediately right of circle, 2 px tall, runs to the right edge.
+			_dropIndicatorLine.Width = lineWidth;
+			_dropIndicatorLine.Height = IndicatorLineThickness;
+			Canvas.SetLeft(_dropIndicatorLine, origin.X + IndicatorHeadSize + IndicatorHeadGap);
+			Canvas.SetTop(_dropIndicatorLine, lineY - IndicatorLineThickness / 2);
+		}
+
+		// ── Make visible; only animate on first appearance to avoid flicker ─────
+		// Starting a new Storyboard on every DragOver mouse-move (while already visible)
+		// causes multiple animations to compete on Opacity, producing a visible flicker.
+		// Only fade in when transitioning from Collapsed → Visible.
+		bool wasCollapsed = _dropIndicatorHead.Visibility == Visibility.Collapsed;
+
+		if (wasCollapsed)
+		{
+			_dropIndicatorHead.Opacity = 0;
+			_dropIndicatorLine.Opacity = 0;
+		}
+
+		_dropIndicatorHead.Visibility = Visibility.Visible;
+		_dropIndicatorLine.Visibility = Visibility.Visible;
+
+		if (wasCollapsed)
+		{
+			// One-shot fade-in only on first show.
+			var fadeIn = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+			{
+				To = 1.0,
+				Duration = new Duration(TimeSpan.FromMilliseconds(80)),
+				EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+					{ EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+			};
+			var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+			storyboard.Children.Add(fadeIn);
+			Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeIn, _dropIndicatorHead);
+			Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeIn, "Opacity");
+
+			var fadeIn2 = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+			{
+				To = 1.0,
+				Duration = new Duration(TimeSpan.FromMilliseconds(80)),
+				EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+					{ EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+			};
+			storyboard.Children.Add(fadeIn2);
+			Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(fadeIn2, _dropIndicatorLine);
+			Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fadeIn2, "Opacity");
+
+			storyboard.Begin();
+		}
+		else
+		{
+			// Already visible — ensure full opacity without starting another animation.
+			_dropIndicatorHead.Opacity = 1;
+			_dropIndicatorLine.Opacity = 1;
+		}
+	}
+
+	/// <summary>
+	/// Hides the between-items drop indicator. Safe to call when no indicator is shown.
+	/// </summary>
+	void HideInsertionIndicator()
+	{
+		if (_dropIndicatorHead is not null)
+			_dropIndicatorHead.Visibility = Visibility.Collapsed;
+		if (_dropIndicatorLine is not null)
+			_dropIndicatorLine.Visibility = Visibility.Collapsed;
+	}
+
+	// Indicator geometry constants.
+	const double IndicatorHeadSize = 12.0;    // hollow circle outer diameter in px
+	const double IndicatorHeadGap = 2.0;      // gap between circle and line
+	const double IndicatorLineThickness = 2.0;
+
+	#endregion
+
+	#region Dim / Restore During Drag
+
+	/// <summary>
+	/// Removes any locally-set Background on <paramref name="container"/> so the
+	/// DP falls back to the Style-set ThemeResource (transparent by default in
+	/// MauiItemsView).  Called defensively in ElementClearing and CleanupDragState
+	/// to guard against stale local values on recycled containers.
+	/// </summary>
+	static void RemoveDragGhostAppearance(ItemContainer container)
+	{
+		container.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
+	}
+
+	/// <summary>
+	/// Dims all realized containers except the source container to the
+	/// <see cref="DragDimOpacity"/> level, visually signalling reorder mode.
+	/// Called after the source container is hidden so it doesn't accidentally
+	/// receive DragDimOpacity on top of Opacity=0.
+	/// </summary>
+	void DimNonSourceContainers()
+	{
+		if (_draggedItem is null)
+		{
+			return;
+		}
+
+		foreach (var container in FindAllContainers())
+		{
+			// Skip the source slot (already at Opacity=0).
+			if (ReferenceEquals(container, _sourceContainer))
+			{
+				continue;
+			}
+
+			container.Opacity = DragDimOpacity;
+		}
+	}
+
+	/// <summary>
+	/// Restores all realized containers to full opacity. Called from
+	/// <see cref="CleanupDragState"/> and <see cref="ItemContainer_DropCompleted"/>.
+	/// </summary>
+	void RestoreAllContainerOpacity()
+	{
+		foreach (var container in FindAllContainers())
+		{
+			container.Opacity = 1;
+			container.IsHitTestVisible = true;
+		}
+	}
+
+	#endregion
 }

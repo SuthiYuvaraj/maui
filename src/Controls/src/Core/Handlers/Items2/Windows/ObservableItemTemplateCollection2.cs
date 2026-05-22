@@ -3,286 +3,348 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 
-namespace Microsoft.Maui.Controls.Handlers.Items2
+namespace Microsoft.Maui.Controls.Handlers.Items2;
+/// <summary>
+/// An observable collection of <see cref="ItemTemplateContext2"/> that mirrors an
+/// <see cref="INotifyCollectionChanged"/> items source, keeping the template collection
+/// synchronized with the underlying data and supporting drag/drop reordering.
+/// </summary>
+internal class ObservableItemTemplateCollection2 : ObservableCollection<ItemTemplateContext2>
 {
-	internal class ObservableItemTemplateCollection2 : ObservableCollection<ItemTemplateContext2>
+	readonly IList _itemsSource;
+	readonly DataTemplate _itemTemplate;
+	readonly BindableObject _container;
+	readonly IMauiContext? _mauiContext;
+	readonly double _itemHeight;
+	readonly double _itemWidth;
+	readonly Thickness _itemSpacing;
+	readonly NotifyCollectionChangedEventHandler _collectionChanged;
+	readonly WeakNotifyCollectionChangedProxy _proxy = new();
+
+	bool _innerCollectionChange = false;
+	bool _observeChanges = true;
+
+	~ObservableItemTemplateCollection2() => _proxy.Unsubscribe();
+
+	public ObservableItemTemplateCollection2(IList itemsSource, DataTemplate itemTemplate, BindableObject container,
+		double? itemHeight = null, double? itemWidth = null, Thickness? itemSpacing = null, IMauiContext? mauiContext = null)
 	{
-		readonly IList _itemsSource;
-		readonly DataTemplate _itemTemplate;
-		readonly BindableObject _container;
-		readonly IMauiContext? _mauiContext;
-		readonly double _itemHeight;
-		readonly double _itemWidth;
-		readonly Thickness _itemSpacing;
-		readonly NotifyCollectionChangedEventHandler _collectionChanged;
-		readonly WeakNotifyCollectionChangedProxy _proxy = new();
+		_itemsSource = itemsSource;
+		_itemTemplate = itemTemplate;
+		_container = container;
+		_mauiContext = mauiContext;
+		_itemHeight = itemHeight ?? 0;
+		_itemWidth = itemWidth ?? 0;
+		_itemSpacing = itemSpacing ?? default;
+		_collectionChanged = InnerCollectionChanged;
 
-		bool _innerCollectionChange = false;
-		bool _observeChanges = true;
+		PopulateInitialItems(itemsSource, itemTemplate, container);
+		SubscribeToSourceChanges(itemsSource);
+	}
 
-		~ObservableItemTemplateCollection2() => _proxy.Unsubscribe();
-
-		public ObservableItemTemplateCollection2(IList itemsSource, DataTemplate itemTemplate, BindableObject container,
-			double? itemHeight = null, double? itemWidth = null, Thickness? itemSpacing = null, IMauiContext? mauiContext = null)
+	/// <summary>
+	/// Subscribes to collection change events on the items source and this collection.
+	/// </summary>
+	void SubscribeToSourceChanges(IList itemsSource)
+	{
+		if (itemsSource is INotifyCollectionChanged notifyCollectionChanged)
 		{
-			
-
-			_itemsSource = itemsSource;
-			_itemTemplate = itemTemplate;
-			_container = container;
-			_mauiContext = mauiContext;
-
-			if (itemHeight.HasValue)
-			{
-				_itemHeight = itemHeight.Value;
-			}
-
-			if (itemWidth.HasValue)
-			{
-				_itemWidth = itemWidth.Value;
-			}
-
-			if (itemSpacing.HasValue)
-			{
-				_itemSpacing = itemSpacing.Value;
-			}
-
-			for (int index = 0; index < itemsSource.Count; index++)
-			{
-				// We're using this as a source for a ListViewBase, and we need INCC to work. So ListViewBase is going
-				// to iterate over the entire source list right off the bat, no matter what we do. Creating one
-				// ItemTemplateContext per item in the collection is unavoidable. Luckily, ITC is pretty cheap.
-				Add(new ItemTemplateContext2(itemTemplate, itemsSource[index]!, container, _itemHeight, _itemWidth, _itemSpacing,
-					false, false, _mauiContext));
-			}
-
-			_collectionChanged = InnerCollectionChanged;
-			if (itemsSource is INotifyCollectionChanged notifyCollectionChanged)
-			{
-				_proxy.Subscribe(notifyCollectionChanged, _collectionChanged);
-			}
-
-			CollectionChanged += TemplateCollectionChanged;
+			_proxy.Subscribe(notifyCollectionChanged, _collectionChanged);
 		}
 
-		public void CleanUp()
+		CollectionChanged += TemplateCollectionChanged;
+	}
+
+	/// <summary>
+	/// Unsubscribes from collection change events. Must be called when replacing
+	/// the items source or when the handler disconnects.
+	/// </summary>
+	internal void CleanUp()
+	{
+		CollectionChanged -= TemplateCollectionChanged;
+		_proxy.Unsubscribe();
+	}
+
+	/// <summary>
+	/// Populates the collection with initial <see cref="ItemTemplateContext2"/> entries
+	/// for each item in the source list.
+	/// </summary>
+	void PopulateInitialItems(IList itemsSource, DataTemplate itemTemplate, BindableObject container)
+	{
+		for (int index = 0; index < itemsSource.Count; index++)
 		{
-			CollectionChanged -= TemplateCollectionChanged;
-			_proxy.Unsubscribe();
+			var item = itemsSource[index];
+			if (item is null)
+				continue;
+
+			Add(new ItemTemplateContext2(itemTemplate, item, container, _itemHeight, _itemWidth, _itemSpacing,
+				false, false, _mauiContext));
 		}
+	}
 
-		void TemplateCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
+	void TemplateCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
+	{
+		if (!_innerCollectionChange)
 		{
-			if (!_innerCollectionChange)
-			{
-				// When the template collection changes not as result of an inner collection change.
-				// The only time this happens is during a drag/drop item reorder (CanReorderItems).
-				// The ListView/GridView has notified us now we need to move those changes into the source.
-				// One might think it would be a "Move" event but it is actually a "Remove" followed by "Add".
-				_observeChanges = false;
+			// When the template collection changes not as result of an inner collection change.
+			// The only time this happens is during a drag/drop item reorder (CanReorderItems).
+			// The ListView/GridView has notified us now we need to move those changes into the source.
+			// One might think it would be a "Move" event but it is actually a "Remove" followed by "Add".
+			_observeChanges = false;
 
-				switch (args.Action)
-				{
-					case NotifyCollectionChangedAction.Add:
-						AddToSource(args);
-						break;
-					case NotifyCollectionChangedAction.Remove:
-						RemoveFromSource(args);
-						break;
-					default:
-						break;
-				}
-
-				_observeChanges = true;
-			}
-		}
-
-		void AddToSource(NotifyCollectionChangedEventArgs args)
-		{
-			if (args.NewItems is null)
-			{
-				return;
-			}
-
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf((ItemTemplateContext2)args.NewItems[0]!);
-
-			var count = args.NewItems.Count;
-
-			for (int index = 0; index < count; index++)
-			{
-				var newItem = (ItemTemplateContext2?)args.NewItems[index];
-				if (newItem != null)
-					_itemsSource.Insert(startIndex, newItem.Item);
-			}
-		}
-
-		void RemoveFromSource(NotifyCollectionChangedEventArgs args)
-		{
-			if (args.OldItems is null)
-			{
-				return;
-			}
-
-			var startIndex = args.OldStartingIndex;
-
-			if (startIndex < 0)
-			{
-				// INCC implementation isn't giving us enough information to know where the removed items were in the
-				return;
-			}
-
-			var count = args.OldItems.Count;
-
-			for (int index = startIndex + count - 1; index >= startIndex; index--)
-			{
-				_itemsSource.RemoveAt(index);
-			}
-		}
-
-		void InnerCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
-		{
-			if (!_observeChanges)
-			{
-				return;
-			}
-
-			_container.Dispatcher.DispatchIfRequired(() => InnerCollectionChanged(args));
-		}
-
-		void InnerCollectionChanged(NotifyCollectionChangedEventArgs args)
-		{
-			_innerCollectionChange = true;
 			switch (args.Action)
 			{
 				case NotifyCollectionChangedAction.Add:
-					Add(args);
-					break;
-				case NotifyCollectionChangedAction.Move:
-					Move(args);
+					AddToSource(args);
 					break;
 				case NotifyCollectionChangedAction.Remove:
-					Remove(args);
-					break;
-				case NotifyCollectionChangedAction.Replace:
-					Replace(args);
-					break;
-				case NotifyCollectionChangedAction.Reset:
-					Reset();
+					RemoveFromSource(args);
 					break;
 				default:
-					throw new ArgumentOutOfRangeException();
+					break;
 			}
-			_innerCollectionChange = false;
+
+			_observeChanges = true;
+		}
+	}
+
+	void AddToSource(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.NewItems is null)
+		{
+			return;
 		}
 
-		void Add(NotifyCollectionChangedEventArgs args)
+		var firstItem = args.NewItems[0] as ItemTemplateContext2;
+		var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : (firstItem is not null ? IndexOf(firstItem) : -1);
+
+		var count = args.NewItems.Count;
+
+		for (int index = 0; index < count; index++)
 		{
-			if (args.NewItems is null)
-			{
-				return;
-			}
+			var newItem = args.NewItems[index] as ItemTemplateContext2;
+			if (newItem is not null)
+				_itemsSource.Insert(startIndex + index, newItem.Item);
+		}
+	}
 
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
-
-			var count = args.NewItems.Count;
-
-			for (int index = 0; index < count; index++)
-			{
-				Insert(startIndex, new ItemTemplateContext2(_itemTemplate, args.NewItems[index]!, _container, _itemHeight, _itemWidth, _itemSpacing, 
-					false, false, _mauiContext));
-			}
+	void RemoveFromSource(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.OldItems is null)
+		{
+			return;
 		}
 
-		void Move(NotifyCollectionChangedEventArgs args)
+		var startIndex = args.OldStartingIndex;
+
+		if (startIndex < 0)
 		{
-			if (args.NewItems is null)
-			{
-				return;
-			}
-
-			var count = args.NewItems.Count;
-			if (args.OldStartingIndex > args.NewStartingIndex)
-			{
-				for (int index = 0; index < count; index++)
-				{
-					Move(args.OldStartingIndex + index, args.NewStartingIndex + index);
-				}
-
-				return;
-			}
-
-			for (int index = count - 1; index >= 0; index--)
-			{
-				Move(args.OldStartingIndex + index, args.NewStartingIndex + index);
-			}
+			// INCC implementation isn't giving us enough information to know where the removed items were in the
+			return;
 		}
 
-		void Remove(NotifyCollectionChangedEventArgs args)
+		var count = args.OldItems.Count;
+
+		for (int index = startIndex + count - 1; index >= startIndex; index--)
 		{
-			if (args.OldItems is null)
-			{
-				return;
-			}
+			_itemsSource.RemoveAt(index);
+		}
+	}
 
-			var startIndex = args.OldStartingIndex;
+	void InnerCollectionChanged(object? sender, NotifyCollectionChangedEventArgs args)
+	{
+		if (!_observeChanges)
+		{
+			return;
+		}
 
-			if (startIndex < 0)
-			{
-				// INCC implementation isn't giving us enough information to know where the removed items were in the
-				// collection. So the best we can do is a full Reset.
+		_container.Dispatcher.DispatchIfRequired(() => InnerCollectionChanged(args));
+	}
+
+	void InnerCollectionChanged(NotifyCollectionChangedEventArgs args)
+	{
+		_innerCollectionChange = true;
+		switch (args.Action)
+		{
+			case NotifyCollectionChangedAction.Add:
+				Add(args);
+				break;
+			case NotifyCollectionChangedAction.Move:
+				Move(args);
+				break;
+			case NotifyCollectionChangedAction.Remove:
+				Remove(args);
+				break;
+			case NotifyCollectionChangedAction.Replace:
+				Replace(args);
+				break;
+			case NotifyCollectionChangedAction.Reset:
 				Reset();
-				return;
-			}
-
-			var count = args.OldItems.Count;
-
-			for (int index = startIndex + count - 1; index >= startIndex; index--)
-			{
-				RemoveAt(index);
-			}
+				break;
+			default:
+				throw new ArgumentOutOfRangeException();
 		}
+		_innerCollectionChange = false;
+	}
 
-		void Replace(NotifyCollectionChangedEventArgs args)
+	void Add(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.NewItems is null)
 		{
-			if (args.OldItems == null || args.NewItems == null)
-			{
-				return;
-			}
-
-			var newItemCount = args.NewItems.Count;
-
-			if (newItemCount == args.OldItems.Count)
-			{
-				for (int index = 0; index < newItemCount; index++)
-				{
-					var itemIndex = args.OldStartingIndex + index;
-					var oldItem = this[itemIndex];
-					var newItem = new ItemTemplateContext2(_itemTemplate, args.NewItems[index]!, _container, _itemHeight, _itemWidth, _itemSpacing, 
-						false, false, _mauiContext);
-					Items[itemIndex] = newItem;
-					var update = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, itemIndex);
-					OnCollectionChanged(update);
-				}
-			}
-			else
-			{
-				// If we're replacing one set with an equal size set, we can do a soft reset; if not, we have to completely
-				// rebuild the collection
-				Reset();
-			}
+			return;
 		}
 
-		void Reset()
+		var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
+
+		var count = args.NewItems.Count;
+
+		for (int index = 0; index < count; index++)
 		{
-			Items.Clear();
-			foreach (var item in _itemsSource)
+			var item = args.NewItems[index];
+			if (item is null)
+				continue;
+
+			Insert(startIndex + index, new ItemTemplateContext2(_itemTemplate, item, _container, _itemHeight, _itemWidth, _itemSpacing,
+				false, false, _mauiContext));
+		}
+	}
+
+	void Move(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.NewItems is null)
+		{
+			return;
+		}
+
+		var count = args.NewItems.Count;
+		if (args.OldStartingIndex > args.NewStartingIndex)
+		{
+			for (int n = 0; n < count; n++)
 			{
-				Items.Add(new ItemTemplateContext2(_itemTemplate, item, _container, _itemHeight, _itemWidth, _itemSpacing,
-					false, false, _mauiContext));
+				Move(args.OldStartingIndex + n, args.NewStartingIndex + n);
 			}
 
-			var reset = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
-			OnCollectionChanged(reset);
+			return;
 		}
+
+		for (int n = count - 1; n >= 0; n--)
+		{
+			Move(args.OldStartingIndex + n, args.NewStartingIndex + n);
+		}
+	}
+
+	/// <summary>
+	/// Overrides <see cref="ObservableCollection{T}.MoveItem"/> to fire
+	/// <see cref="NotifyCollectionChangedAction.Remove"/> followed by
+	/// <see cref="NotifyCollectionChangedAction.Add"/> instead of the default
+	/// <see cref="NotifyCollectionChangedAction.Move"/> event.
+	/// <para>
+	/// CsWinRT projects <c>CollectionChanged(Move)</c> as <c>VectorChanged(Reset)</c>
+	/// because WinRT's <c>IVectorChangedEventArgs.CollectionChange</c> has no Move value.
+	/// When ItemsRepeater receives Reset it clears all realized containers, momentarily
+	/// collapses its height to zero, and the ScrollViewer auto-clamps its offset to zero —
+	/// the scroll-to-top bug.
+	/// </para>
+	/// <para>
+	/// Firing Remove + Add instead causes CsWinRT to emit
+	/// <c>VectorChanged(ItemRemoved)</c> + <c>VectorChanged(ItemInserted)</c>, which
+	/// ItemsRepeater handles by recycling only the moved container while preserving the
+	/// ScrollViewer offset. <see cref="_innerCollectionChange"/> (set by
+	/// <see cref="InnerCollectionChanged(NotifyCollectionChangedEventArgs)"/>) prevents
+	/// <see cref="TemplateCollectionChanged"/> from back-propagating these events to source.
+	/// </para>
+	/// </summary>
+	protected override void MoveItem(int oldIndex, int newIndex)
+	{
+		CheckReentrancy();
+
+		var item = this[oldIndex];
+
+		// Update the underlying list directly — same as the base class does before
+		// firing CollectionChanged(Move). We avoid calling base.MoveItem() so we
+		// control which events are raised.
+		Items.RemoveAt(oldIndex);
+		Items.Insert(newIndex, item);
+
+		// Fire Remove + Add in place of the default Move event.
+		// CollectionChanged(Remove) → CsWinRT → VectorChanged(ItemRemoved)
+		// CollectionChanged(Add)    → CsWinRT → VectorChanged(ItemInserted)
+		// Neither triggers VectorChanged(Reset), so ItemsRepeater preserves scroll position.
+		OnCollectionChanged(new NotifyCollectionChangedEventArgs(
+			NotifyCollectionChangedAction.Remove, item, oldIndex));
+		OnCollectionChanged(new NotifyCollectionChangedEventArgs(
+			NotifyCollectionChangedAction.Add, item, newIndex));
+	}
+
+	void Remove(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.OldItems is null)
+		{
+			return;
+		}
+
+		var startIndex = args.OldStartingIndex;
+
+		if (startIndex < 0)
+		{
+			// INCC implementation isn't giving us enough information to know where the removed items were in the
+			// collection. So the best we can do is a full Reset.
+			Reset();
+			return;
+		}
+
+		var count = args.OldItems.Count;
+
+		for (int index = startIndex + count - 1; index >= startIndex; index--)
+		{
+			RemoveAt(index);
+		}
+	}
+
+	void Replace(NotifyCollectionChangedEventArgs args)
+	{
+		if (args.OldItems == null || args.NewItems == null)
+		{
+			return;
+		}
+
+		var newItemCount = args.NewItems.Count;
+
+		if (newItemCount == args.OldItems.Count)
+		{
+			for (int index = 0; index < newItemCount; index++)
+			{
+				var item = args.NewItems[index];
+				if (item is null)
+					continue;
+
+				var itemIndex = args.OldStartingIndex + index;
+				var oldItem = this[itemIndex];
+				var newItem = new ItemTemplateContext2(_itemTemplate, item, _container, _itemHeight, _itemWidth, _itemSpacing,
+					false, false, _mauiContext);
+				Items[itemIndex] = newItem;
+				var update = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newItem, oldItem, itemIndex);
+				OnCollectionChanged(update);
+			}
+		}
+		else
+		{
+			// If we're replacing one set with an equal size set, we can do a soft reset; if not, we have to completely
+			// rebuild the collection
+			Reset();
+		}
+	}
+
+	void Reset()
+	{
+		Items.Clear();
+		foreach (var item in _itemsSource)
+		{
+			Items.Add(new ItemTemplateContext2(_itemTemplate, item, _container, _itemHeight, _itemWidth, _itemSpacing,
+				false, false, _mauiContext));
+		}
+
+		var reset = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
+		OnCollectionChanged(reset);
 	}
 }
