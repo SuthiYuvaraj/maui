@@ -1,1 +1,3 @@
 #nullable enable
+*REMOVED*Microsoft.Maui.Platform.CalendarDatePickerExtensions
+*REMOVED*static Microsoft.Maui.Platform.CalendarDatePickerExtensions.ToDateFormat(this string! dateFormat) -> string!

@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace Microsoft.Maui.Platform
 {
-	//TODO make this public on NET8
 	internal static class CalendarDatePickerExtensions
 	{
 		public static string ToDateFormat(this string dateFormat)
@@ -35,7 +34,8 @@ namespace Microsoft.Maui.Platform
 
 			// Handle custom format strings (or resolved standard formats)
 			string result = string.Empty;
-			string separator = GetSeparator(dateFormat); var parts = dateFormat.Split(separator);
+			string separator = GetSeparator(dateFormat);
+			var parts = dateFormat.Split(separator);
 
 			if (parts.Length > 0)
 			{
