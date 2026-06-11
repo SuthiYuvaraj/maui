@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.DeviceTests.Stubs;
+using Microsoft.Maui.Platform;
 using Microsoft.UI.Xaml.Controls;
 using Xunit;
 
@@ -60,14 +61,15 @@ namespace Microsoft.Maui.DeviceTests
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
 
-		[Theory(DisplayName = "Supported Standard Format Strings Initialize Correctly")]
-		[InlineData("d")] // Short date pattern - uses built-in pattern with normal conversion
-		[InlineData("D")] // Long date pattern - uses built-in pattern with normal conversion
-		[InlineData("m")] // Month/day pattern - uses built-in pattern with normal conversion
-		[InlineData("M")] // Month/day pattern - uses built-in pattern with normal conversion
-		[InlineData("y")] // Year/month pattern - uses built-in pattern with normal conversion
-		[InlineData("Y")] // Year/month pattern - uses built-in pattern with normal conversion
-		public async Task SupportedStandardFormatInitializesCorrectly(string format)
+		// ISO-8601 / RFC-1123 specifiers produce fixed WinUI patterns regardless of locale.
+		[Theory(DisplayName = "Invariant Standard Format Specifiers Initialize Correctly")]
+		[InlineData("o", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
+		[InlineData("O", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
+		[InlineData("r", "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}")]
+		[InlineData("R", "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}")]
+		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
+		[InlineData("u", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
+		public async Task InvariantFormatSpecifiersInitializeCorrectly(string format, string expectedNativeFormat)
 		{
 			var datePicker = new DatePickerStub();
 
@@ -75,33 +77,59 @@ namespace Microsoft.Maui.DeviceTests
 			datePicker.MinimumDate = DateTime.Today.AddDays(-1);
 			datePicker.MaximumDate = DateTime.Today.AddDays(1);
 			datePicker.Format = format;
-
-			// Get the expected native format by converting through the normal flow
-			var expectedNativeFormat = format.ToDateFormat();
 
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, expectedNativeFormat);
 		}
 
-		[Theory(DisplayName = "Unsupported Standard Format Strings Initialize Correctly")]
-		[InlineData("f", "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}")]
-		[InlineData("F", "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")]
-		[InlineData("r", "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")]
-		[InlineData("R", "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT")]
-		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}")]
-		[InlineData("U", "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}")]
-		[InlineData("g", "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)} {period.abbreviated}")]
-		[InlineData("G", "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}")]
-		public async Task UnsupportedStandardFormatInitializesCorrectly(string format, string nativeFormat)
+		// Expected strings are hard-coded for en-US to avoid using ToDateFormat() as its own oracle.
+		[Theory(DisplayName = "Culture-Sensitive Standard Format Specifiers Produce Correct WinUI Pattern (en-US)")]
+		[InlineData("D", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
+		[InlineData("f", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
+		[InlineData("F", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
+		[InlineData("g", "{month.integer(1)}/{day.integer}/{year.full}")]
+		[InlineData("G", "{month.integer(1)}/{day.integer}/{year.full}")]
+		[InlineData("m", "{month.full} {day.integer}")]
+		[InlineData("M", "{month.full} {day.integer}")]
+		[InlineData("U", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
+		[InlineData("y", "{month.full} {year.full}")]
+		[InlineData("Y", "{month.full} {year.full}")]
+		public void CultureSensitiveFormatSpecifiersProduceCorrectPatternForEnUS(string format, string expectedNativeFormat)
 		{
-			var datePicker = new DatePickerStub();
+			var savedCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+			try
+			{
+				System.Threading.Thread.CurrentThread.CurrentCulture =
+					System.Globalization.CultureInfo.GetCultureInfo("en-US");
 
-			datePicker.Date = new DateTime(2025, 12, 25);
-			datePicker.MinimumDate = DateTime.Today.AddDays(-1);
-			datePicker.MaximumDate = DateTime.Today.AddDays(1);
-			// Use a specific date to ensure consistent results
-			datePicker.Format = format;
+				Assert.Equal(expectedNativeFormat, format.ToDateFormat());
+			}
+			finally
+			{
+				System.Threading.Thread.CurrentThread.CurrentCulture = savedCulture;
+			}
+		}
 
-			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
+		// Regression guard: locale literals (commas, dots) must survive the conversion.
+		[Theory(DisplayName = "Standard Format Specifiers Preserve Locale Literals (de-DE)")]
+		[InlineData("D", "{dayofweek.full}, {day.integer}. {month.full} {year.full}")]
+		[InlineData("m", "{day.integer}. {month.full}")]
+		[InlineData("M", "{day.integer}. {month.full}")]
+		[InlineData("g", "{day.integer(2)}.{month.integer(2)}.{year.full}")]
+		[InlineData("G", "{day.integer(2)}.{month.integer(2)}.{year.full}")]
+		public void StandardFormatSpecifiersPreserveLocaleLiteralsForDeDE(string format, string expectedNativeFormat)
+		{
+			var savedCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+			try
+			{
+				System.Threading.Thread.CurrentThread.CurrentCulture =
+					System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+				Assert.Equal(expectedNativeFormat, format.ToDateFormat());
+			}
+			finally
+			{
+				System.Threading.Thread.CurrentThread.CurrentCulture = savedCulture;
+			}
 		}
 
 		CalendarDatePicker GetNativeDatePicker(DatePickerHandler datePickerHandler) =>
@@ -113,7 +141,7 @@ namespace Microsoft.Maui.DeviceTests
 			return plaformDatePicker.DateFormat;
 		}
 
-		DateTime GetNativeDate(DatePickerHandler datePickerHandler)
+		DateTime? GetNativeDate(DatePickerHandler datePickerHandler)
 		{
 			var plaformDatePicker = GetNativeDatePicker(datePickerHandler);
 			var date = plaformDatePicker.Date;
@@ -121,7 +149,7 @@ namespace Microsoft.Maui.DeviceTests
 			if (date.HasValue)
 				return date.Value.DateTime;
 
-			return DateTime.MinValue;
+			return null;
 		}
 
 		Color GetNativeTextColor(DatePickerHandler datePickerHandler)

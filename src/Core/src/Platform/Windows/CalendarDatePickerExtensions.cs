@@ -1,7 +1,7 @@
-﻿
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 
 namespace Microsoft.Maui.Platform
 {
@@ -15,21 +15,14 @@ namespace Microsoft.Maui.Platform
 			if (string.IsNullOrEmpty(dateFormat) || CheckDateFormat(dateFormat))
 				return string.Empty;
 
-			// Handle standard .NET DateTime format strings (single characters)
+			// Handle standard .NET single-character date format specifiers before attempting
+			// to parse as a composite format string (e.g. "dd/MM/yyyy").
+			// Uses CultureInfo.CurrentCulture so the result respects the user's locale.
 			if (dateFormat.Length == 1)
 			{
-				string convertedFormat = ConvertStandardFormat(dateFormat);
-
-				// If ConvertStandardFormat returns a WinUI format (starts with '{'), return it directly
-				if (!string.IsNullOrEmpty(convertedFormat) && convertedFormat.StartsWith("{"))
-					return convertedFormat;
-
-				// If empty, use default
-				if (string.IsNullOrEmpty(convertedFormat))
-					return string.Empty;
-
-				// Otherwise, it's a .NET pattern that needs conversion - let it fall through
-				dateFormat = convertedFormat;
+				var standardFormat = GetStandardFormatString(dateFormat[0]);
+				if (standardFormat is not null)
+					return standardFormat;
 			}
 
 			// Handle custom format strings (or resolved standard formats)
@@ -51,49 +44,94 @@ namespace Microsoft.Maui.Platform
 			return result;
 		}
 
-		internal static string ConvertStandardFormat(string format)
+		// Converts a .NET date-pattern string (e.g. from DateTimeFormatInfo) to a WinUI
+		// DateTimeFormatter pattern string.  Unlike the separator-based GetSeparator/GetPart
+		// path, this tokenizer preserves every literal character — including commas, dots, and
+		// spaces — so locale patterns such as "dddd, d MMMM yyyy" (en-AU long date) or
+		// "d. MMMM" (de-DE month/day) round-trip correctly.
+		internal static string ConvertNetPatternToWinUI(string netPattern)
+		{
+			var sb = new StringBuilder();
+			int i = 0;
+
+			while (i < netPattern.Length)
+			{
+				char c = netPattern[i];
+
+				if (c == '\'' && i + 1 < netPattern.Length) // Single-quoted literal
+				{
+					i++; // skip opening quote
+					while (i < netPattern.Length && netPattern[i] != '\'')
+						sb.Append(netPattern[i++]);
+					if (i < netPattern.Length) i++; // skip closing quote
+				}
+				else if (c == '\\' && i + 1 < netPattern.Length) // Escape sequence
+				{
+					sb.Append(netPattern[i + 1]);
+					i += 2;
+				}
+				else if (c == 'd' || c == 'M' || c == 'y')
+				{
+					int start = i;
+					while (i < netPattern.Length && netPattern[i] == c) i++;
+					sb.Append(GetDateToken(c, i - start));
+				}
+				else
+				{
+					// Preserve all other characters as literals (commas, spaces, slashes, dots,
+					// dashes, etc.).  Time-related characters that appear in full date/time patterns
+					// are also emitted as literals; they are harmless for CalendarDatePicker since
+					// it is a date-only control.
+					sb.Append(c);
+					i++;
+				}
+			}
+
+			return sb.ToString();
+		}
+
+		// Returns the WinUI DateTimeFormatter token for a given .NET date-pattern character and run length.
+		internal static string GetDateToken(char specifier, int count) =>
+			(specifier, count) switch
+			{
+				('d', 1) => "{day.integer}",
+				('d', 2) => "{day.integer(2)}",
+				('d', 3) => "{dayofweek.abbreviated}",
+				('d', _) => "{dayofweek.full}",
+				('M', 1) => "{month.integer(1)}",
+				('M', 2) => "{month.integer(2)}",
+				('M', 3) => "{month.abbreviated}",
+				('M', _) => "{month.full}",
+				('y', 1) or ('y', 2) => "{year.abbreviated}",
+				_ => "{year.full}"
+			};
+
+		// Maps a standard .NET single-character date format specifier to a WinUI DateTimeFormatter
+		// pattern string derived from the current culture so the result respects the user's locale.
+		// Returns null for unrecognised specifiers so the caller falls through to the generic parser.
+		// "d" (short date) is handled by CheckDateFormat above and intentionally omitted here.
+		internal static string? GetStandardFormatString(char specifier)
 		{
 			var dtfi = CultureInfo.CurrentCulture.DateTimeFormat;
 
-			switch (format)
+			return specifier switch
 			{
-				// Supported formats - return .NET pattern to be converted through normal flow
-				case "d": // Short date pattern
-					return dtfi.ShortDatePattern;
-				case "D": // Long date pattern
-					return dtfi.LongDatePattern;
-				case "m":
-				case "M": // Month day pattern
-					return dtfi.MonthDayPattern;
-				case "y":
-				case "Y": // Year month pattern
-					return dtfi.YearMonthPattern;
-
-				// Unsupported formats - return WinUI format string directly
-				case "f": // Full date/time pattern (short time) - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)} {period.abbreviated}";
-				case "F": // Full date/time pattern (long time) - include seconds as per .NET standard
-					return "{dayofweek.full} {month.full} {day.integer}, {year.full} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
-				case "g": // General date/time pattern (short time) - use short date since time is not applicable  
-					return "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)} {period.abbreviated}";
-				case "G": // General date/time pattern (long time) - use short date since time is not applicable
-					return "{month.integer}/{day.integer}/{year.abbreviated} {hour.integer}:{minute.integer(2)}:{second.integer(2)} {period.abbreviated}";
-				case "u":
-					return "{year.full}-{month.integer(2)}-{day.integer(2)} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}Z";
-				case "U": // Universal full date/time pattern - use long date since time is not applicable
-					return "{dayofweek.full} {month.full} {day.integer} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}";
-				case "o":
-				case "O": // Round-trip date/time pattern - use ISO 8601 format
-					return "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(7)}";
-				case "r":
-				case "R": // RFC1123 pattern - use abbreviated format as close approximation
-					return "{dayofweek.abbreviated}, {day.integer(2)} {month.abbreviated} {year.full} {hour.integer(2)}:{minute.integer(2)}:{second.integer(2)} GMT";
-				case "s": // Sortable date/time pattern - use numeric format
-					return "{year.full}-{month.integer(2)}-{day.integer(2)}T{hour.integer(2)}:{minute.integer(2)}:{second.integer(2)}";
-				default:
-					// For unrecognized formats, return empty string so that they use the default format
-					return string.Empty;
-			}
+				// Long date: culture-aware, derived from LongDatePattern (e.g. "dddd, MMMM d, yyyy")
+				'D' => ConvertNetPatternToWinUI(dtfi.LongDatePattern),
+				// Full date/time: CalendarDatePicker is date-only — show the long-date portion
+				'f' or 'F' or 'U' => ConvertNetPatternToWinUI(dtfi.LongDatePattern),
+				// General date/time: date-only — show the short-date portion (culture-aware)
+				'g' or 'G' => ConvertNetPatternToWinUI(dtfi.ShortDatePattern),
+				// Month/day: culture-aware (e.g. "MMMM d" in en-US, "d. MMMM" in de-DE)
+				'm' or 'M' => ConvertNetPatternToWinUI(dtfi.MonthDayPattern),
+				// Round-trip / sortable / universal sortable: ISO 8601 date — not locale-sensitive
+				'o' or 'O' or 's' or 'u' => "{year.full}-{month.integer(2)}-{day.integer(2)}",
+				// RFC 1123: fixed format — not locale-sensitive
+				'r' or 'R' => "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}",
+				// Year/month: culture-aware (e.g. "MMMM yyyy" in en-US)
+				'y' or 'Y' => ConvertNetPatternToWinUI(dtfi.YearMonthPattern),
+				_ => null
+			};
 		}
 
 		internal static string GetSeparator(string format)

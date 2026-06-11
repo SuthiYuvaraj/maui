@@ -1663,7 +1663,6 @@ Microsoft.Maui.Platform.ApplicationExtensions
 Microsoft.Maui.Platform.AspectExtensions
 Microsoft.Maui.Platform.BorderExtensions
 Microsoft.Maui.Platform.ButtonExtensions
-Microsoft.Maui.Platform.CalendarDatePickerExtensions
 Microsoft.Maui.Platform.CharacterSpacingExtensions
 Microsoft.Maui.Platform.CheckBoxExtensions
 Microsoft.Maui.Platform.ColorConverter
@@ -3019,7 +3018,6 @@ static Microsoft.Maui.Platform.ButtonExtensions.UpdateText(this Microsoft.UI.Xam
 static Microsoft.Maui.Platform.ButtonExtensions.UpdateText(this Microsoft.UI.Xaml.Controls.Button! platformButton, string! text) -> void
 static Microsoft.Maui.Platform.ButtonExtensions.UpdateTextColor(this Microsoft.UI.Xaml.Controls.Primitives.ButtonBase! platformButton, Microsoft.Maui.Graphics.Color! textColor) -> void
 static Microsoft.Maui.Platform.ButtonExtensions.UpdateTextColor(this Microsoft.UI.Xaml.Controls.Primitives.ButtonBase! platformButton, Microsoft.Maui.ITextStyle! button) -> void
-static Microsoft.Maui.Platform.CalendarDatePickerExtensions.ToDateFormat(this string! dateFormat) -> string!
 static Microsoft.Maui.Platform.CharacterSpacingExtensions.ToEm(this double pt) -> int
 static Microsoft.Maui.Platform.CheckBoxExtensions.UpdateForeground(this Microsoft.UI.Xaml.Controls.CheckBox! platformCheckBox, Microsoft.Maui.ICheckBox! check) -> void
 static Microsoft.Maui.Platform.CheckBoxExtensions.UpdateIsChecked(this Microsoft.UI.Xaml.Controls.CheckBox! platformCheckBox, Microsoft.Maui.ICheckBox! check) -> void
