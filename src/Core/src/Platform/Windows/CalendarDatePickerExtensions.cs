@@ -25,23 +25,10 @@ namespace Microsoft.Maui.Platform
 					return standardFormat;
 			}
 
-			// Handle custom format strings (or resolved standard formats)
-			string result = string.Empty;
-			string separator = GetSeparator(dateFormat);
-			var parts = dateFormat.Split(separator);
-
-			if (parts.Length > 0)
-			{
-				for (int i = 0; i < parts.Length; i++)
-				{
-					if (i < parts.Length - 1)
-						result += GetPart(parts[i]) + separator;
-					else
-						result += GetPart(parts[i]);
-				}
-			}
-
-			return result;
+			// Handle custom format strings using the tokenizer that preserves locale literals.
+			// This properly handles patterns like "dddd, MMMM d, yyyy" (en-AU) or
+			// "d. MMMM" (de-DE) where punctuation and spacing are significant.
+			return ConvertNetPatternToWinUI(dateFormat);
 		}
 
 		// Converts a .NET date-pattern string (e.g. from DateTimeFormatInfo) to a WinUI
