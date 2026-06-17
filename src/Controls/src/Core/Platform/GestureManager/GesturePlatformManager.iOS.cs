@@ -185,51 +185,36 @@ namespace Microsoft.Maui.Controls.Platform
 		{
 			var eventTracker = weakEventTracker.Target as GesturePlatformManager;
 			var virtualView = eventTracker?._handler?.VirtualView as View;
-			var platformRecognizer = weakPlatformRecognizer?.Target as UIGestureRecognizer;
 			var platformView = element?.ToPlatform();
 
 			if (virtualView == null)
 				return null;
 
-			if (platformRecognizer == null)
-			{
-				if (virtualView == element)
-					return new Point((int)originPoint.X, (int)originPoint.Y);
+			if (virtualView == element)
+				return new Point((int)originPoint.X, (int)originPoint.Y);
 
-				var targetViewScreenLocation = virtualView.GetLocationOnScreen();
+			var targetViewScreenLocation = virtualView.GetLocationOnScreen();
 
-				if (!targetViewScreenLocation.HasValue)
-					return null;
-
-				var windowX = targetViewScreenLocation.Value.X + originPoint.X;
-				var windowY = targetViewScreenLocation.Value.Y + originPoint.Y;
-
-				if (element == null)
-					return new Point(windowX, windowY);
-
-				if (platformView is PlatformView uiView)
-				{
-					var location = uiView.GetLocationOnScreen();
-
-					var x = windowX - location.X;
-					var y = windowY - location.Y;
-
-					return new Point(x, y);
-				}
-
+			if (!targetViewScreenLocation.HasValue)
 				return null;
+
+			var windowX = targetViewScreenLocation.Value.X + originPoint.X;
+			var windowY = targetViewScreenLocation.Value.Y + originPoint.Y;
+
+			if (element == null)
+				return new Point(windowX, windowY);
+
+			if (platformView is PlatformView uiView)
+			{
+				var location = uiView.GetLocationOnScreen();
+
+				var x = windowX - location.X;
+				var y = windowY - location.Y;
+
+				return new Point(x, y);
 			}
 
-			CGPoint? result = null;
-			if (element == null)
-				result = platformRecognizer.LocationInView(null);
-			else if (platformView is PlatformView view)
-				result = platformRecognizer.LocationInView(view);
-
-			if (result == null)
-				return null;
-
-			return new Point((int)result.Value.X, (int)result.Value.Y);
+			return null;
 		}
 
 		protected virtual List<UIGestureRecognizer?>? GetPlatformRecognizer(IGestureRecognizer recognizer)

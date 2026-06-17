@@ -52,7 +52,7 @@ namespace Microsoft.Maui.Controls.Platform
 					if (!CheckButtonMask(recognizer, e))
 						continue;
 
-					recognizer.SendTapped(view, (view) => e.CalculatePosition(GetView(), view));
+					recognizer.SendTapped(view, e.CapturePosition(view));
 					captured = true;
 				}
 			}
@@ -66,7 +66,7 @@ namespace Microsoft.Maui.Controls.Platform
 				if (!CheckButtonMask(gestureRecognizer, e))
 					continue;
 
-				gestureRecognizer.SendTapped(view, (view) => e.CalculatePosition(GetView(), view));
+				gestureRecognizer.SendTapped(view, e.CapturePosition(view));
 				captured = true;
 			}
 
