@@ -12,23 +12,67 @@ namespace Microsoft.Maui.Platform
 			// The WinUI CalendarDatePicker DateFormat property use this formatter:
 			// https://docs.microsoft.com/en-us/uwp/api/Windows.Globalization.DateTimeFormatting.DateTimeFormatter?redirectedfrom=MSDN&view=winrt-22621#code-snippet-2
 
-			if (string.IsNullOrEmpty(dateFormat) || CheckDateFormat(dateFormat))
+			if (string.IsNullOrEmpty(dateFormat))
 				return string.Empty;
 
-			// Handle standard .NET single-character date format specifiers before attempting
-			// to parse as a composite format string (e.g. "dd/MM/yyyy").
-			// Uses CultureInfo.CurrentCulture so the result respects the user's locale.
-			if (dateFormat.Length == 1)
-			{
-				var standardFormat = GetStandardFormatString(dateFormat[0]);
-				if (standardFormat is not null)
-					return standardFormat;
-			}
+			// Standard .NET date-only format specifiers are mapped to WinUI templates.
+			// Time-containing standard specifiers are not supported by date-only CalendarDatePicker.
+			if (TryConvertStandardDateFormat(dateFormat, out var standardDateFormat))
+				return standardDateFormat;
+
+			if (CheckDateFormat(dateFormat))
+				return string.Empty;
 
 			// Handle custom format strings using the tokenizer that preserves locale literals.
 			// This properly handles patterns like "dddd, MMMM d, yyyy" (en-AU) or
 			// "d. MMMM" (de-DE) where punctuation and spacing are significant.
 			return ConvertNetPatternToWinUI(dateFormat);
+		}
+
+		internal static bool TryConvertStandardDateFormat(string format, out string convertedFormat)
+		{
+			convertedFormat = null;
+
+			if (format.Length != 1)
+				return false;
+
+			switch (format)
+			{
+				case "d":
+					convertedFormat = "shortdate";
+					return true;
+				case "D":
+					convertedFormat = "longdate";
+					return true;
+				case "m":
+				case "M":
+					convertedFormat = "month day";
+					return true;
+				case "y":
+				case "Y":
+					convertedFormat = "month year";
+					return true;
+
+				// DatePicker is date-only, so time-containing standard DateTime formats
+				// intentionally fall back to the native default date format.
+				case "f":
+				case "F":
+				case "g":
+				case "G":
+				case "o":
+				case "O":
+				case "r":
+				case "R":
+				case "s":
+				case "t":
+				case "T":
+				case "u":
+				case "U":
+					convertedFormat = string.Empty;
+					return true;
+				default:
+					return false;
+			}
 		}
 
 		// Converts a .NET date-pattern string (e.g. from DateTimeFormatInfo) to a WinUI
@@ -93,33 +137,6 @@ namespace Microsoft.Maui.Platform
 				_ => "{year.full}"
 			};
 
-		// Maps a standard .NET single-character date format specifier to a WinUI DateTimeFormatter
-		// pattern string derived from the current culture so the result respects the user's locale.
-		// Returns null for unrecognised specifiers so the caller falls through to the generic parser.
-		// "d" (short date) is handled by CheckDateFormat above and intentionally omitted here.
-		internal static string? GetStandardFormatString(char specifier)
-		{
-			var dtfi = CultureInfo.CurrentCulture.DateTimeFormat;
-
-			return specifier switch
-			{
-				// Long date: culture-aware, derived from LongDatePattern (e.g. "dddd, MMMM d, yyyy")
-				'D' => ConvertNetPatternToWinUI(dtfi.LongDatePattern),
-				// Full date/time: CalendarDatePicker is date-only — show the long-date portion
-				'f' or 'F' or 'U' => ConvertNetPatternToWinUI(dtfi.LongDatePattern),
-				// General date/time: date-only — show the short-date portion (culture-aware)
-				'g' or 'G' => ConvertNetPatternToWinUI(dtfi.ShortDatePattern),
-				// Month/day: culture-aware (e.g. "MMMM d" in en-US, "d. MMMM" in de-DE)
-				'm' or 'M' => ConvertNetPatternToWinUI(dtfi.MonthDayPattern),
-				// Round-trip / sortable / universal sortable: ISO 8601 date — not locale-sensitive
-				'o' or 'O' or 's' or 'u' => "{year.full}-{month.integer(2)}-{day.integer(2)}",
-				// RFC 1123: fixed format — not locale-sensitive
-				'r' or 'R' => "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}",
-				// Year/month: culture-aware (e.g. "MMMM yyyy" in en-US)
-				'y' or 'Y' => ConvertNetPatternToWinUI(dtfi.YearMonthPattern),
-				_ => null
-			};
-		}
 
 		internal static string GetSeparator(string format)
 		{

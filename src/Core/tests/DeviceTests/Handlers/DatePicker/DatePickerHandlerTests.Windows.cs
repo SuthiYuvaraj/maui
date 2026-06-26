@@ -61,75 +61,40 @@ namespace Microsoft.Maui.DeviceTests
 			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
 
-		// ISO-8601 / RFC-1123 specifiers produce fixed WinUI patterns regardless of locale.
-		[Theory(DisplayName = "Invariant Standard Format Specifiers Initialize Correctly")]
-		[InlineData("o", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
-		[InlineData("O", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
-		[InlineData("r", "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}")]
-		[InlineData("R", "{dayofweek.abbreviated}, {day.integer} {month.abbreviated} {year.full}")]
-		[InlineData("s", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
-		[InlineData("u", "{year.full}-{month.integer(2)}-{day.integer(2)}")]
-		public async Task InvariantFormatSpecifiersInitializeCorrectly(string format, string expectedNativeFormat)
+		[Theory(DisplayName = "Standard Date-Only Format Initializes Correctly")]
+		[InlineData("d", "shortdate")]
+		[InlineData("D", "longdate")]
+		[InlineData("m", "month day")]
+		[InlineData("M", "month day")]
+		[InlineData("y", "month year")]
+		[InlineData("Y", "month year")]
+		public async Task StandardDateOnlyFormatInitializesCorrectly(string format, string nativeFormat)
 		{
 			var datePicker = new DatePickerStub();
 
-			datePicker.Date = new DateTime(2025, 12, 25);
-			datePicker.MinimumDate = DateTime.Today.AddDays(-1);
-			datePicker.MaximumDate = DateTime.Today.AddDays(1);
+			datePicker.Date = DateTime.Today;
 			datePicker.Format = format;
 
-			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, expectedNativeFormat);
+			await ValidatePropertyInitValue(datePicker, () => datePicker.Format, GetNativeFormat, format, nativeFormat);
 		}
 
-		// Expected strings are hard-coded for en-US to avoid using ToDateFormat() as its own oracle.
-		[Theory(DisplayName = "Culture-Sensitive Standard Format Specifiers Produce Correct WinUI Pattern (en-US)")]
-		[InlineData("D", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
-		[InlineData("f", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
-		[InlineData("F", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
-		[InlineData("g", "{month.integer(1)}/{day.integer}/{year.full}")]
-		[InlineData("G", "{month.integer(1)}/{day.integer}/{year.full}")]
-		[InlineData("m", "{month.full} {day.integer}")]
-		[InlineData("M", "{month.full} {day.integer}")]
-		[InlineData("U", "{dayofweek.full}, {month.full} {day.integer}, {year.full}")]
-		[InlineData("y", "{month.full} {year.full}")]
-		[InlineData("Y", "{month.full} {year.full}")]
-		public void CultureSensitiveFormatSpecifiersProduceCorrectPatternForEnUS(string format, string expectedNativeFormat)
+		[Theory(DisplayName = "Unsupported Time Standard Format Falls Back To Default")]
+		[InlineData("f")]
+		[InlineData("F")]
+		[InlineData("g")]
+		[InlineData("G")]
+		[InlineData("o")]
+		[InlineData("O")]
+		[InlineData("r")]
+		[InlineData("R")]
+		[InlineData("s")]
+		[InlineData("t")]
+		[InlineData("T")]
+		[InlineData("u")]
+		[InlineData("U")]
+		public void UnsupportedTimeStandardFormatFallsBackToDefault(string format)
 		{
-			var savedCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
-			try
-			{
-				System.Threading.Thread.CurrentThread.CurrentCulture =
-					System.Globalization.CultureInfo.GetCultureInfo("en-US");
-
-				Assert.Equal(expectedNativeFormat, format.ToDateFormat());
-			}
-			finally
-			{
-				System.Threading.Thread.CurrentThread.CurrentCulture = savedCulture;
-			}
-		}
-
-		// Regression guard: locale literals (commas, dots) must survive the conversion.
-		[Theory(DisplayName = "Standard Format Specifiers Preserve Locale Literals (de-DE)")]
-		[InlineData("D", "{dayofweek.full}, {day.integer}. {month.full} {year.full}")]
-		[InlineData("m", "{day.integer}. {month.full}")]
-		[InlineData("M", "{day.integer}. {month.full}")]
-		[InlineData("g", "{day.integer(2)}.{month.integer(2)}.{year.full}")]
-		[InlineData("G", "{day.integer(2)}.{month.integer(2)}.{year.full}")]
-		public void StandardFormatSpecifiersPreserveLocaleLiteralsForDeDE(string format, string expectedNativeFormat)
-		{
-			var savedCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
-			try
-			{
-				System.Threading.Thread.CurrentThread.CurrentCulture =
-					System.Globalization.CultureInfo.GetCultureInfo("de-DE");
-
-				Assert.Equal(expectedNativeFormat, format.ToDateFormat());
-			}
-			finally
-			{
-				System.Threading.Thread.CurrentThread.CurrentCulture = savedCulture;
-			}
+			Assert.Equal(string.Empty, format.ToDateFormat());
 		}
 
 		CalendarDatePicker GetNativeDatePicker(DatePickerHandler datePickerHandler) =>
