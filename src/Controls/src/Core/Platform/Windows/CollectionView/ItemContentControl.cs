@@ -266,6 +266,21 @@ namespace Microsoft.Maui.Controls.Platform
 
 		void OnViewMeasureInvalidated(object sender, EventArgs e)
 		{
+			// When many items are realized together (e.g., a CollectionView with a large number of cells),
+			// each item's IsPlatformStateConsistent gets set to true during the same WinUI layout pass
+			// (see SetNativeStateConsistent/Realize below). That raises MeasureInvalidated with a
+			// RendererReady trigger for every item and its descendants. Handling that case with a
+			// synchronous InvalidateMeasure() call here can cascade into hundreds of layout invalidations
+			// within a single WinUI layout pass and trip the platform's layout cycle detection
+			// (LayoutCycleException, see https://github.com/dotnet/maui/issues/31627). Defer just this
+			// case to the next dispatcher tick, using the same debouncing mechanism already used for
+			// ItemWidth/ItemHeight changes.
+			if (e is InvalidationEventArgs invalidationEventArgs && invalidationEventArgs.Trigger == InvalidationTrigger.RendererReady)
+			{
+				InvalidateItemDimensionMeasure();
+				return;
+			}
+
 			InvalidateMeasure();
 		}
 
