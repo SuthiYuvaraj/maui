@@ -85,7 +85,7 @@ namespace Microsoft.Maui.Platform
 			// stops announcing stale content and its children become navigable again.
 			if (semantics is null)
 			{
-				if (view is ILayout && platformView is not UIControl && platformView.IsAccessibilityElement)
+				if ((view is ILayout || view is IContentView) && platformView is not UIControl && platformView.IsAccessibilityElement)
 				{
 					platformView.IsAccessibilityElement = false;
 					platformView.AccessibilityLabel = null;
@@ -172,6 +172,30 @@ namespace Microsoft.Maui.Platform
 				{
 					demotedMauiView.SynthesizeAccessibilityLabelFromChildren = false;
 				}
+			}
+
+			// Content-view style containers (ContentView, Border, Frame, ScrollView, RefreshView,
+			// etc.) implement IContentView but not ILayout, so none of the #35590 synthesis logic
+			// above applies to them. Left alone, they would fall through to the generic
+			// UpdateSemantics(UIView, Semantics?) below, which unconditionally sets
+			// IsAccessibilityElement = true for any non-UIControl view whenever Description or Hint
+			// is set. On iOS that collapses the container's ENTIRE subtree into a single opaque
+			// VoiceOver leaf, silently hiding independently accessible descendants (e.g. a
+			// BindableLayout of tappable items) — this is the root cause of #33612, and it predates
+			// #35590 entirely. So: expose Description/Hint as metadata only, and never promote these
+			// containers to a leaf accessibility element — VoiceOver navigation is left to the
+			// children, matching Android/Windows, which never hide a subtree this way.
+			//
+			// Guard: an empty container (no content set) has nothing for VoiceOver to reach, so it's
+			// safe — and more useful — to let it behave like a normal leaf element instead (falling
+			// through to the generic UpdateSemantics below).
+			if (view is IContentView contentView && view is not ILayout && contentView.PresentedContent is not null)
+			{
+				platformView.AccessibilityLabel = semantics.Description;
+				platformView.AccessibilityHint = semantics.Hint;
+				platformView.IsAccessibilityElement = false;
+				UpdateSemanticsHeading(platformView, semantics);
+				return;
 			}
 
 			UpdateSemantics(platformView, semantics);
