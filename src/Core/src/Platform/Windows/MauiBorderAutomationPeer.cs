@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-using Microsoft.UI.Xaml.Automation;
+﻿using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Microsoft.Maui.Platform
@@ -9,7 +7,7 @@ namespace Microsoft.Maui.Platform
 	/// <summary>
 	/// Provides automation peer behavior for a .NET MAUI border on Windows.
 	/// </summary>
-	public partial class MauiBorderAutomationPeer : FrameworkElementAutomationPeer, IInvokeProvider
+	public partial class MauiBorderAutomationPeer : FrameworkElementAutomationPeer
 	{
 		/// <summary>
 		/// Initializes a new instance of the <see cref="MauiBorderAutomationPeer"/> class.
@@ -79,41 +77,5 @@ namespace Microsoft.Maui.Platform
 			var accessibilityView = panel.ReadLocalValue(AutomationProperties.AccessibilityViewProperty);
 			return accessibilityView is AccessibilityView.Content;
 		}
-
-		// Once this Border has its own Control-view identity (Name/HelpText/explicit opt-in), treat
-		// it as a leaf — same as MauiButtonAutomationPeer. Otherwise Narrator's cursor lands on the
-		// inner content (e.g. a bound Label) instead of the Border, so it never reads this Border's
-		// HelpText ("Double tap to activate") and never reaches its IInvokeProvider (see #33612).
-		// Guard against a detached/disposed Owner (e.g. during item recycling) before calling into
-		// base.GetChildrenCore(), which is not guaranteed to be null-safe in that state.
-		protected override IList<AutomationPeer>? GetChildrenCore()
-		{
-			if (Owner is null)
-			{
-				return null;
-			}
-
-			return IsControlElementCore() ? null : base.GetChildrenCore();
-		}
-
-		// Expose the Invoke pattern only when GesturePlatformManager has wired an activate callback
-		// (i.e. this Border's only interaction is a TapGestureRecognizer). This is what makes
-		// Narrator announce "double tap to activate" and lets Enter/Narrator-activate fire the tap.
-		protected override object? GetPatternCore(PatternInterface patternInterface) =>
-			patternInterface == PatternInterface.Invoke && Owner is ContentPanel { AutomationActivateCallback: not null }
-				? this
-				: base.GetPatternCore(patternInterface);
-
-		// ContentPanel derives from Panel, not Control, so it has no native Tab-stop/keyboard focus.
-		// Report this peer as keyboard-focusable whenever it's activatable so Narrator's Enter-key
-		// activation routes here instead of being swallowed (mirrors IsTabStop set on ContentPanel
-		// when AutomationActivateCallback is assigned — see ContentPanel.AutomationActivateCallback).
-		protected override bool IsKeyboardFocusableCore() =>
-			(Owner as ContentPanel)?.AutomationActivateCallback is not null || base.IsKeyboardFocusableCore();
-
-		protected override void SetFocusCore() => Owner?.Focus(global::Microsoft.UI.Xaml.FocusState.Programmatic);
-
-		// IInvokeProvider
-		public void Invoke() => (Owner as ContentPanel)?.AutomationActivateCallback?.Invoke();
 	}
 }
