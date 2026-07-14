@@ -186,10 +186,24 @@ namespace Microsoft.Maui.Platform
 			// containers to a leaf accessibility element — VoiceOver navigation is left to the
 			// children, matching Android/Windows, which never hide a subtree this way.
 			//
-			// Guard: an empty container (no content set) has nothing for VoiceOver to reach, so it's
-			// safe — and more useful — to let it behave like a normal leaf element instead (falling
-			// through to the generic UpdateSemantics below).
-			if (view is IContentView contentView && view is not ILayout && contentView.PresentedContent is not null)
+			// Guard 1: an empty container (no content set) has nothing for VoiceOver to reach, so
+			// it's safe — and more useful — to let it behave like a normal leaf element instead
+			// (falling through to the generic UpdateSemantics below).
+			//
+			// Guard 2: a container that owns its own gesture recognizer (e.g. an item-template root
+			// Border with a TapGestureRecognizer and its own Description/Hint) isn't a passive
+			// structural wrapper — it IS the actionable unit, exactly like Android's node, which
+			// stays a single leaf carrying ContentDescription/HintText/ActionClick. Forcing
+			// IsAccessibilityElement = false here would make VoiceOver skip straight past it to a
+			// plain child (e.g. a Label), losing the Description/Hint/Button trait entirely and
+			// announcing generic "text" instead. We check the platform view's own native
+			// GestureRecognizers (not a descendant walk, not a control-type allowlist) so this stays
+			// generic. So: only apply the never-collapse guard when the container has no gesture of
+			// its own.
+			if (view is IContentView contentView
+				&& view is not ILayout
+				&& contentView.PresentedContent is not null
+				&& platformView.GestureRecognizers is not { Length: > 0 })
 			{
 				platformView.AccessibilityLabel = semantics.Description;
 				platformView.AccessibilityHint = semantics.Hint;
