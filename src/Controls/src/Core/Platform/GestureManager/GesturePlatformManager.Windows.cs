@@ -431,13 +431,15 @@ namespace Microsoft.Maui.Controls.Platform
 			UpdateContentPanelIsTapStop(false);
 		}
 
-		// Sets or resets the IsTabStop property on ContentPanel (Border) when gesture recognizers are added or removed for border.
-		// This allows Border to be focusable when it has TapGestureRecognizers for keyboard accessibility.
+		// Sets or resets the IsTabStop property on ContentPanel (Border/ContentView) when gesture recognizers are added or removed.
+		// This allows Border and ContentView to be focusable when they have TapGestureRecognizers for keyboard accessibility.
 		void UpdateContentPanelIsTapStop(bool canAllowTabStop)
 		{
-			if (_control is ContentPanel contentPanel && contentPanel.CrossPlatformLayout is IBorderView)
+			// Extended from Border-only (#35578) to also cover plain ContentView, so gesture-only
+			// ContentView items are keyboard-focusable and invocable, not just Border (see #33612).
+			if (_control is ContentPanel contentPanel && contentPanel.CrossPlatformLayout is IBorderView or IContentView)
 			{
-				// A disabled or input-transparent Border must not be keyboard-focusable even if it has a TapGestureRecognizer.
+				// A disabled or input-transparent Border/ContentView must not be keyboard-focusable even if it has a TapGestureRecognizer.
 				// ContentPanel derives from Panel, so MapIsEnabled does not propagate IsEnabled to it.
 				// InputTransparent on Windows only disables hit-testing (mouse), not tab navigation — guard it explicitly.
 				bool shouldEnable = canAllowTabStop && (Element is not View v || (v.IsEnabled && !v.InputTransparent));
@@ -460,11 +462,11 @@ namespace Microsoft.Maui.Controls.Platform
 			}
 		}
 
-		// Handle Enter and Space key presses to trigger TapGestureRecognizers on Border for keyboard accessibility
-		// This is only applicable when the Border has TapGestureRecognizers attached
+		// Handle Enter and Space key presses to trigger TapGestureRecognizers on Border/ContentView for keyboard accessibility
+		// This is only applicable when the Border/ContentView has TapGestureRecognizers attached
 		void ContentPanelOnKeyDown(object sender, KeyRoutedEventArgs e)
 		{
-			// Only handle events originating directly from the ContentPanel (i.e. the Border itself is focused).
+			// Only handle events originating directly from the ContentPanel (i.e. the Border/ContentView itself is focused).
 			// KeyDown is a bubbling routed event; without this guard a child element's unhandled Enter/Space
 			// would bubble up and spuriously fire the Border's TapGestureRecognizer.
 			if (!ReferenceEquals(e.OriginalSource, sender))
@@ -1139,7 +1141,7 @@ namespace Microsoft.Maui.Controls.Platform
 
 				_container.RightTapped += OnTap;
 
-				// Only enable tab stop when the border itself has a primary-button single-tap gesture.
+				// Only enable tab stop when the Border/ContentView itself has a primary-button single-tap gesture.
 				// Children should handle their own keyboard focus independently, and secondary-only
 				// gestures are not activated via Enter/Space.
 				UpdateContentPanelIsTapStop(hasSelfPrimarySingleTap);
@@ -1263,7 +1265,7 @@ namespace Microsoft.Maui.Controls.Platform
 		{
 			if ((e.PropertyName == VisualElement.IsEnabledProperty.PropertyName ||
 				 e.PropertyName == VisualElement.InputTransparentProperty.PropertyName)
-				&& _control is ContentPanel { CrossPlatformLayout: IBorderView })
+				&& _control is ContentPanel { CrossPlatformLayout: IBorderView or IContentView })
 			{
 				// ContentPanel derives from Panel, so MapIsEnabled does not propagate to it.
 				// InputTransparent on Windows only disables hit-testing, not tab navigation — recompute here.
@@ -1275,7 +1277,7 @@ namespace Microsoft.Maui.Controls.Platform
 		void HandleTapGestureRecognizerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName is nameof(TapGestureRecognizer.NumberOfTapsRequired) or nameof(TapGestureRecognizer.Buttons)
-				&& _control is ContentPanel { CrossPlatformLayout: IBorderView })
+				&& _control is ContentPanel { CrossPlatformLayout: IBorderView or IContentView })
 			{
 				// Recompute keyboard focus state when tap recognizer properties change at runtime.
 				UpdatingGestureRecognizers();

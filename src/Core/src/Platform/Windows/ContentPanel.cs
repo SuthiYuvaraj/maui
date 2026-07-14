@@ -91,8 +91,14 @@ namespace Microsoft.Maui.Platform
 			protected override string GetLocalizedControlTypeCore() =>
 				HasDescription ? string.Empty : base.GetLocalizedControlTypeCore() ?? string.Empty;
 
+			// Only collapse children when there's nothing real to show (no PresentedContent) —
+			// previously this collapsed whenever a Name/Description was set, which hid legitimate
+			// child content (e.g. a Label) from Narrator and made the whole container read as one
+			// opaque group instead of exposing its accessible children (see #33612).
 			protected override IList<AutomationPeer>? GetChildrenCore() =>
-				HasDescription ? null : base.GetChildrenCore();
+				HasDescription && Owner is ContentPanel { CrossPlatformLayout: IContentView { PresentedContent: null } }
+					? null
+					: base.GetChildrenCore();
 		}
 
 		void ContentPanelSizeChanged(object sender, SizeChangedEventArgs e)
