@@ -1,1 +1,4 @@
 #nullable enable
+override Microsoft.Maui.Platform.MauiView.Bounds.get -> CoreGraphics.CGRect
+override Microsoft.Maui.Platform.MauiView.Bounds.set -> void
+virtual Microsoft.Maui.Platform.MauiView.AccessibilityElements.get -> Foundation.NSObject![]?
