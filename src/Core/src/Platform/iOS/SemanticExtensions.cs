@@ -104,6 +104,7 @@ namespace Microsoft.Maui.Platform
 						clearedMauiView.SynthesizeAccessibilityLabelFromChildren = false;
 						clearedMauiView.AccessibilityContainerLabel = null;
 						clearedMauiView.AccessibilityContainerHint = null;
+						clearedMauiView.ClearAccessibilityContainerElement();
 					}
 				}
 
@@ -217,6 +218,7 @@ namespace Microsoft.Maui.Platform
 			{
 				leafMauiView.AccessibilityContainerLabel = null;
 				leafMauiView.AccessibilityContainerHint = null;
+				leafMauiView.ClearAccessibilityContainerElement();
 			}
 
 			UpdateSemantics(platformView, semantics);
