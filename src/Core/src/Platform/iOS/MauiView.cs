@@ -1028,8 +1028,10 @@ namespace Microsoft.Maui.Platform
 
 		// Exposes the UIKit accessibilityElements selector on MauiView.
 		// Returning null keeps default platform behavior (VoiceOver infers elements from subviews).
+		// Kept internal so this bridge doesn't become part of MAUI's supported public API surface;
+		// [Export] still registers the selector with the ObjC runtime regardless of C# visibility.
 		[Export("accessibilityElements")]
-		public virtual NSObject[]? AccessibilityElements
+		internal NSObject[]? AccessibilityElements
 		{
 			get
 			{
