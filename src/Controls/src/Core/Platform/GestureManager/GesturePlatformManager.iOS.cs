@@ -847,7 +847,7 @@ namespace Microsoft.Maui.Controls.Platform
 						nativeRecognizer.ShouldReceiveTouch = _proxy.ShouldReceiveTouch;
 
 						UIView targetView = GetGestureTargetView(platformView);
-						if (!ReferenceEquals(targetView, platformView))
+						if (!ReferenceEquals(targetView, platformView) && nativeRecognizer is UITapGestureRecognizer)
 						{
 							// The gesture recognizer is attached directly to the inner UIControl instead
 							// of the container, so it participates in the control's own touch tracking.
@@ -988,7 +988,9 @@ namespace Microsoft.Maui.Controls.Platform
 				// (This goes for children of that control as well)
 
 				if (touch.View.IsDescendantOfView(platformView) &&
-					(touch.View.GestureRecognizers?.Length > 0 || platformView.GestureRecognizers?.Length > 0))
+					(touch.View.GestureRecognizers?.Length > 0 ||
+					recognizer.View?.GestureRecognizers?.Length > 0 ||
+					platformView.GestureRecognizers?.Length > 0))
 				{
 					return true;
 				}
