@@ -1,1 +1,2 @@
 #nullable enable
+virtual Microsoft.Maui.Platform.MauiView.AccessibilityElements.get -> Foundation.NSObject![]?
