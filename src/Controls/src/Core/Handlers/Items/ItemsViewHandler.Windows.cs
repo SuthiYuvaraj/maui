@@ -32,6 +32,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		bool _emptyViewDisplayed;
 		double _previousHorizontalOffset;
 		double _previousVerticalOffset;
+		object _keepItemsInViewAnchor;
 		protected ListViewBase ListViewBase => PlatformView;
 		protected TItemsView ItemsView => VirtualView;
 		protected TItemsView Element => VirtualView;
@@ -200,8 +201,16 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 
 			if (mode == ItemsUpdatingScrollMode.KeepItemsInView)
 			{
-				// Keeps the first item visible when items are inserted
-				ListViewBase.ScrollIntoView(view[0]);
+				// Keep whichever item was visible before the update in view. CarouselView manages
+				// its own position via OnCollectionItemsSourceChanged, so it keeps the prior behavior.
+				if (ItemsView is not CarouselView && _keepItemsInViewAnchor is not null && view.IndexOf(_keepItemsInViewAnchor) >= 0)
+				{
+					ListViewBase.ScrollIntoView(_keepItemsInViewAnchor);
+				}
+				else
+				{
+					ListViewBase.ScrollIntoView(view[0]);
+				}
 			}
 			else if (mode == ItemsUpdatingScrollMode.KeepLastItemInView)
 			{
@@ -299,6 +308,8 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			{
 				return;
 			}
+
+			_keepItemsInViewAnchor = null;
 
 			CleanUpCollectionViewSource();
 
@@ -583,6 +594,17 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 			}
 
 			itemsViewScrolledEventArgs = ComputeVisibleIndexes(itemsViewScrolledEventArgs, layoutOrientaton, advancing);
+
+			if (ItemsView.ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepItemsInView && ItemsView is not CarouselView)
+			{
+				var view = CollectionViewSource?.View;
+				var firstVisibleIndex = itemsViewScrolledEventArgs.FirstVisibleItemIndex;
+
+				if (view is not null && firstVisibleIndex >= 0 && firstVisibleIndex < view.Count)
+				{
+					_keepItemsInViewAnchor = view[firstVisibleIndex];
+				}
+			}
 
 			Element.SendScrolled(itemsViewScrolledEventArgs);
 
