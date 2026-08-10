@@ -32,9 +32,17 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 		public virtual void ResetAppearance(AToolbar toolbar, IShellToolbarTracker toolbarTracker)
 		{
-			// SetColors already resolves the right M2/M3 default per-color internally when
-			// passed null, so there's no need to branch on RuntimeFeature.IsMaterial3Enabled here.
-			SetColors(toolbar, toolbarTracker, null, null, null);
+			if (RuntimeFeature.IsMaterial3Enabled)
+			{
+				RestoreNativeColors(toolbar, toolbarTracker);
+			}
+			else
+			{
+				SetColors(toolbar, toolbarTracker,
+					ShellRenderer.DefaultForegroundColor,
+					ShellRenderer.DefaultBackgroundColor,
+					ShellRenderer.DefaultTitleColor);
+			}
 		}
 
 		protected virtual void SetColors(AToolbar toolbar, IShellToolbarTracker toolbarTracker, Color foreground, Color background, Color title)
@@ -48,7 +56,11 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				return;
 
 			var defaultBackground = RuntimeFeature.IsMaterial3Enabled ? null : ShellRenderer.DefaultBackgroundColor;
-			var defaultForeground = RuntimeFeature.IsMaterial3Enabled ? null : ShellRenderer.DefaultForegroundColor;
+			// Material3's Top App Bar spec uses the same onSurface color for both the title and
+			// the navigation icon, so the already-captured _originalNativeTitleColor is reused here
+			// as the icon default too instead of leaving it null (which left ToolbarExtensions.UpdateIconColor
+			// with nothing to apply, causing the flyout/back icon to go invisible on Material3).
+			var defaultForeground = RuntimeFeature.IsMaterial3Enabled ? _originalNativeTitleColor : ShellRenderer.DefaultForegroundColor;
 			var defaultTitle = RuntimeFeature.IsMaterial3Enabled ? _originalNativeTitleColor : ShellRenderer.DefaultTitleColor;
 			var barBackground = background ?? defaultBackground;
 			shellToolbar.BarTextColor = title ?? defaultTitle;
@@ -60,7 +72,23 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			// the default (no custom appearance) M2 case, and syncing it here would overwrite
 			// that and unexpectedly darken overflow/hamburger icons.
 			if (RuntimeFeature.IsMaterial3Enabled)
-				toolbarTracker.TintColor = foreground;
+				toolbarTracker.TintColor = foreground ?? defaultForeground;
+		}
+
+		void RestoreNativeColors(AToolbar toolbar, IShellToolbarTracker toolbarTracker)
+		{
+			if (_disposed)
+				return;
+
+			Toolbar shellToolbar = _shellContext?.Shell?.Toolbar;
+
+			if (shellToolbar is null)
+				return;
+
+			shellToolbar.BarTextColor = _originalNativeTitleColor;
+			shellToolbar.BarBackground = null;
+			shellToolbar.IconColor = _originalNativeTitleColor;
+			toolbarTracker.TintColor = _originalNativeTitleColor;
 		}
 
 		// Shell.Toolbar.BarTextColor is a cross-platform Color, so unlike the TabLayout/BottomNavigationView
