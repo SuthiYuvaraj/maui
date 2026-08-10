@@ -37,6 +37,7 @@ public class TabbedPageManager
 	ColorStateList _originalTabTextColors;
 	ColorStateList _orignalTabIconColors;
 	Drawable _originalBottomNavigationViewBackground;
+	Drawable _originalTabLayoutBackground;
 	ColorStateList _newTabTextColors;
 	ColorStateList _newTabIconColors;
 	FragmentManager _fragmentManager;
@@ -177,6 +178,9 @@ public class TabbedPageManager
 						TabGravity = TabLayout.GravityFill,
 						LayoutParameters = new AppBarLayout.LayoutParams(AppBarLayout.LayoutParams.MatchParent, AppBarLayout.LayoutParams.WrapContent)
 					};
+
+					if (RuntimeFeature.IsMaterial3Enabled)
+						_originalTabLayoutBackground = _tabLayout.Background;
 				}
 			}
 
@@ -630,7 +634,12 @@ public class TabbedPageManager
 			Color tintColor = Element.BarBackgroundColor;
 
 			if (tintColor == null)
+			{
 				_tabLayout.BackgroundTintMode = null;
+
+				if (RuntimeFeature.IsMaterial3Enabled)
+					RestoreTabLayoutBackground();
+			}
 			else
 			{
 				_tabLayout.BackgroundTintMode = PorterDuff.Mode.Src;
@@ -687,12 +696,25 @@ public class TabbedPageManager
 			}
 		}
 		else
+		{
 			_tabLayout.UpdateBackground(_currentBarBackground);
+			if (RuntimeFeature.IsMaterial3Enabled &&
+				Brush.IsNullOrEmpty(_currentBarBackground) &&
+				Element.BarBackgroundColor is null)
+			{
+				RestoreTabLayoutBackground();
+			}
+		}
 	}
 
 	void RestoreBottomNavigationViewBackground()
 	{
 		_bottomNavigationView.SetBackground(_originalBottomNavigationViewBackground);
+	}
+
+	void RestoreTabLayoutBackground()
+	{
+		_tabLayout.SetBackground(_originalTabLayoutBackground);
 	}
 
 	protected virtual ColorStateList GetItemTextColorStates()
