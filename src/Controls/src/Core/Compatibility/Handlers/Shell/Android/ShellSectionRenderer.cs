@@ -156,7 +156,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			_toolbarAppearanceTracker = _shellContext.CreateToolbarAppearanceTracker();
 
 			if (RuntimeFeature.IsMaterial3Enabled && _toolbarAppearanceTracker is ShellToolbarAppearanceTracker concreteToolbarAppearanceTracker)
-				concreteToolbarAppearanceTracker.CaptureNativeTitleColor(_toolbar);
+				concreteToolbarAppearanceTracker.CaptureNativeColors(_toolbar);
 
 			HookEvents();
 

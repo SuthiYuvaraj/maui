@@ -97,7 +97,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 		// queries an AppCompat Toolbar styleable that isn't Material3-aware and resolves to the wrong
 		// (near-invisible) color under M3. Capturing the real M3 theme color once and using it as our
 		// default keeps BarTextColor from ever being null, so that broken shared fallback path is never hit.
-		internal void CaptureNativeTitleColor(AToolbar toolbar)
+		internal void CaptureNativeColors(AToolbar toolbar)
 		{
 			if (_originalAppearanceCaptured)
 				return;

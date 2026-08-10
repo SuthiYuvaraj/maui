@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.Material3BarBackgroundContentPage">
+    <ScrollView>
+        <VerticalStackLayout Padding="24"
+                             Spacing="12">
+            <Label Text="Scenario 6: Bar Background (Brush) - Top vs Bottom tabs"
+                   FontSize="20"
+                   FontAttributes="Bold"/>
+            <Label Text="Exercises TabbedPageManager.RefreshBarBackground (Android), which applies/clears TabbedPage.BarBackground (a Brush, not BarBackgroundColor)."/>
+
+            <Button Text="Set solid Brush BarBackground"
+                    Clicked="OnSetSolidBrushClicked"/>
+            <Button Text="Set gradient Brush BarBackground"
+                    Clicked="OnSetGradientBrushClicked"/>
+            <Button Text="Clear BarBackground (reset to null)"
+                    Clicked="OnClearBrushClicked"/>
+
+            <BoxView HeightRequest="1"
+                     Color="Gray"/>
+            <Label Text="What to check visually:"
+                   FontAttributes="Bold"/>
+            <Label Text="- Setting a solid/gradient Brush updates the tab bar background (TabLayout or BottomNavigationView, depending on which page launched this)."/>
+            <Label Text="- Clearing the Brush restores the correct M2/M3 native default background, not a stale custom brush left over from before (this is the regression this scenario was created to catch for the Top-tab TabLayout path)."/>
+
+            <Button Text="Back to Material3 test menu"
+                    Clicked="OnBackClicked"/>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
