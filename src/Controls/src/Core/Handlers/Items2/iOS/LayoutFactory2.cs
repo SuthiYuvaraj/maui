@@ -540,6 +540,10 @@ internal static class LayoutFactory2
 		ItemsLayout? _itemsLayout;
 		LayoutGroupingInfo? _groupingInfo;
 		LayoutHeaderFooterInfo? _headerFooterInfo;
+		bool _adjustContentOffset;
+		CGSize _adjustmentSize0;
+		CGSize _adjustmentSize1;
+		bool _scrollToLastItemPending;
 
 		public CustomUICollectionViewCompositionalLayout(LayoutSnapInfo snapInfo, LayoutGroupingInfo? groupingInfo, LayoutHeaderFooterInfo? headerFooterInfo, UICollectionViewCompositionalLayoutSectionProvider sectionProvider, UICollectionViewCompositionalLayoutConfiguration configuration, ItemsLayout? itemsLayout) : base(sectionProvider, configuration)
 		{
@@ -549,13 +553,119 @@ internal static class LayoutFactory2
 			_headerFooterInfo = headerFooterInfo;
 		}
 
+		public override void PrepareLayout()
+		{
+			base.PrepareLayout();
+
+			// PrepareLayout is the only place we can consistently observe content size changes;
+			// by the time it runs, CollectionViewContentSize already reflects the new size.
+			TrackOffsetAdjustment();
+		}
+
+		public override void PrepareForCollectionViewUpdates(UICollectionViewUpdateItem[] updateItems)
+		{
+			base.PrepareForCollectionViewUpdates(updateItems);
+
+			// KeepScrollOffset is the platform default (no adjustment needed): the absolute content
+			// offset stays put, so items inserted/removed above the viewport shift the visible content.
+			// KeepItemsInView/KeepLastItemInView need to compensate for the content size change so the
+			// item that's currently on screen doesn't move.
+			if (_itemsLayout?.ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepItemsInView
+				|| _itemsLayout?.ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepLastItemInView)
+			{
+				_adjustContentOffset = UpdateWillShiftVisibleItems(CollectionView, updateItems);
+			}
+		}
+
+		public override CGPoint TargetContentOffsetForProposedContentOffset(CGPoint proposedContentOffset)
+		{
+			if (_adjustContentOffset)
+			{
+				_adjustContentOffset = false;
+				return proposedContentOffset + ComputeOffsetAdjustment();
+			}
+
+			return base.TargetContentOffsetForProposedContentOffset(proposedContentOffset);
+		}
+
+		void TrackOffsetAdjustment()
+		{
+			// Keep track of the previous two content sizes so we can compute how much the content
+			// grew/shrank once an update triggers TargetContentOffsetForProposedContentOffset.
+			if (_adjustmentSize0.IsEmpty)
+			{
+				_adjustmentSize0 = CollectionViewContentSize;
+			}
+			else if (_adjustmentSize1.IsEmpty)
+			{
+				_adjustmentSize1 = CollectionViewContentSize;
+			}
+			else
+			{
+				_adjustmentSize0 = _adjustmentSize1;
+				_adjustmentSize1 = CollectionViewContentSize;
+			}
+		}
+
+		CGSize ComputeOffsetAdjustment()
+		{
+			return CollectionViewContentSize - _adjustmentSize0;
+		}
+
+		static bool UpdateWillShiftVisibleItems(UICollectionView collectionView, UICollectionViewUpdateItem[] updateItems)
+		{
+			var firstPath = collectionView.IndexPathsForVisibleItems.FindFirst();
+
+			if (firstPath == null)
+			{
+				return false;
+			}
+
+			foreach (var item in updateItems)
+			{
+				if (item.UpdateAction == UICollectionUpdateAction.Delete
+					|| item.UpdateAction == UICollectionUpdateAction.Insert
+					|| item.UpdateAction == UICollectionUpdateAction.Move)
+				{
+					if (item.IndexPathAfterUpdate == null)
+					{
+						continue;
+					}
+
+					if (item.IndexPathAfterUpdate.IsLessThanOrEqualToPath(firstPath))
+					{
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
 		public override void FinalizeCollectionViewUpdates()
 		{
 			base.FinalizeCollectionViewUpdates();
 
-			if (_itemsLayout?.ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepLastItemInView)
+			if (_itemsLayout?.ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepLastItemInView && !_scrollToLastItemPending)
 			{
-				ForceScrollToLastItem(CollectionView);
+				_scrollToLastItemPending = true;
+				var collectionView = CollectionView;
+
+				// Defer past this run loop turn; scrolling synchronously here can be silently
+				// overridden by the batch update transaction that is still settling its own offset.
+				CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
+				{
+					_scrollToLastItemPending = false;
+
+					// The collection view may have been disposed/detached by the time this runs;
+					// Handle goes to zero once the native object is released.
+					if (collectionView is null || collectionView.Handle == IntPtr.Zero)
+					{
+						return;
+					}
+
+					ForceScrollToLastItem(collectionView);
+				});
 			}
 		}
 

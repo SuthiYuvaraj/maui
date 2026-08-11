@@ -16,6 +16,7 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		bool _adjustContentOffset;
 		CGSize _adjustmentSize0;
 		CGSize _adjustmentSize1;
+		bool _scrollToLastItemPending;
 		CGSize _currentSize;
 		WeakReference<Func<UICollectionViewCell>> _getPrototype;
 
@@ -496,9 +497,27 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			base.FinalizeCollectionViewUpdates();
 
-			if (ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepLastItemInView)
+			if (ItemsUpdatingScrollMode == ItemsUpdatingScrollMode.KeepLastItemInView && !_scrollToLastItemPending)
 			{
-				ForceScrollToLastItem(CollectionView, _itemsLayout);
+				_scrollToLastItemPending = true;
+				var collectionView = CollectionView;
+				var itemsLayout = _itemsLayout;
+
+				// Defer past this run loop turn; scrolling synchronously here can be silently
+				// overridden by the batch update transaction that is still settling its own offset.
+				CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
+				{
+					_scrollToLastItemPending = false;
+
+					// The layout or its collection view may have been disposed/detached by the
+					// time this runs; Handle goes to zero once the native object is released.
+					if (_disposed || collectionView is null || collectionView.Handle == IntPtr.Zero)
+					{
+						return;
+					}
+
+					ForceScrollToLastItem(collectionView, itemsLayout);
+				});
 			}
 		}
 
