@@ -5,6 +5,7 @@ using Google.Android.Material.Tabs;
 using Microsoft.Maui.Controls.Handlers.Compatibility;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
+using AColor = Android.Graphics.Color;
 using R = Android.Resource;
 
 namespace Microsoft.Maui.Controls.Platform.Compatibility
@@ -16,6 +17,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 		ColorStateList _originalTextColors;
 		Drawable _originalBackground;
 		Drawable _originalIndicatorDrawable;
+		int? _originalIndicatorColor;
 		IShellContext _shellContext;
 
 		public ShellTabLayoutAppearanceTracker(IShellContext shellContext)
@@ -76,7 +78,17 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				}
 				else
 				{
+					// TabLayout.SetSelectedTabIndicator(Drawable) unconditionally re-tints whatever
+					// Drawable it's given using TabLayout's own persistent tabSelectedIndicatorColor
+					// field (see DrawableUtils.setTint call inside AndroidX's implementation) - it does
+					// NOT clear/reset that field. So restoring a pristine Drawable clone alone isn't
+					// enough: the stale color field (left over from the last SetSelectedTabIndicatorColor
+					// call above) immediately re-tints it back to the last custom color. We have to
+					// explicitly reset the color field too, using the native default color captured by
+					// CaptureNativeColors.
 					tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
+					if (_originalIndicatorColor is int originalColor)
+						tabLayout.SetSelectedTabIndicatorColor(new AColor(originalColor));
 				}
 			}
 			else
@@ -96,7 +108,34 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 			_originalTextColors = tabLayout.TabTextColors;
 			_originalBackground = tabLayout.Background;
-			_originalIndicatorDrawable = tabLayout.TabSelectedIndicator;
+
+			// Don't just hold a reference to the live indicator drawable: SetSelectedTabIndicatorColor
+			// tints that exact Drawable instance in place (it calls Drawable.Mutate() internally so the
+			// instance can be recolored), so a plain reference capture here gets silently corrupted the
+			// first time a custom ForegroundColor is applied, and RestoreNativeColors then "restores" the
+			// already-tinted drawable instead of the real native default. Cloning via ConstantState gives
+			// us an independent Drawable instance that later mutation of the live one can't affect - the
+			// same "never hold onto something that can be mutated out from under you" pattern already used
+			// by ShellBottomNavViewAppearanceTracker (which always builds fresh ColorStateLists instead of
+			// mutating captured native ones).
+			var liveIndicator = tabLayout.TabSelectedIndicator;
+			_originalIndicatorDrawable = liveIndicator?.GetConstantState()?.NewDrawable() ?? liveIndicator;
+
+			// TabLayout has no public getter for its private tabSelectedIndicatorColor field, but that
+			// field is what SetSelectedTabIndicator(Drawable) always re-applies as a tint (see comment
+			// in SetColors' else branch above), so we must capture it via reflection here - the same
+			// technique already used for BottomNavigationMenuView's private mShiftingMode field in
+			// BottomNavigationViewUtils - in order to be able to restore the true native default later.
+			try
+			{
+				using var field = tabLayout.Class.GetDeclaredField("tabSelectedIndicatorColor");
+				field.Accessible = true;
+				_originalIndicatorColor = field.GetInt(tabLayout);
+			}
+			catch
+			{
+				_originalIndicatorColor = null;
+			}
 
 			_originalAppearanceCaptured = true;
 		}
@@ -109,6 +148,12 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			tabLayout.SetTabTextColors(_originalTextColors.DefaultColor, _originalTextColors.DefaultColor);
 			tabLayout.SetBackground(_originalBackground);
 			tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
+
+			// See the matching comment in SetColors' else branch - SetSelectedTabIndicator always
+			// re-tints using the stale tabSelectedIndicatorColor field, so the color must be reset
+			// explicitly too, or the indicator will keep showing the last custom color.
+			if (_originalIndicatorColor is int originalColor)
+				tabLayout.SetSelectedTabIndicatorColor(new AColor(originalColor));
 		}
 
 		#region IDisposable
@@ -127,6 +172,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			_originalBackground = null;
 			_originalTextColors = null;
 			_originalIndicatorDrawable = null;
+			_originalIndicatorColor = null;
 			_shellContext = null;
 		}
 
