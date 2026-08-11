@@ -151,12 +151,16 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			_tabLayoutAppearanceTracker = _shellContext.CreateTabLayoutAppearanceTracker(ShellSection);
 
 			if (RuntimeFeature.IsMaterial3Enabled && _tabLayoutAppearanceTracker is ShellTabLayoutAppearanceTracker concreteTabLayoutAppearanceTracker)
+			{
 				concreteTabLayoutAppearanceTracker.CaptureNativeColors(_tablayout);
+			}
 
 			_toolbarAppearanceTracker = _shellContext.CreateToolbarAppearanceTracker();
 
 			if (RuntimeFeature.IsMaterial3Enabled && _toolbarAppearanceTracker is ShellToolbarAppearanceTracker concreteToolbarAppearanceTracker)
+			{
 				concreteToolbarAppearanceTracker.CaptureNativeColors(_toolbar);
+			}
 
 			HookEvents();
 
@@ -269,11 +273,11 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			Destroy();
 			base.OnDestroy();
 		}
-		
+
 		public override void OnHiddenChanged(bool hidden)
 		{
 			base.OnHiddenChanged(hidden);
-			
+
 			if (!hidden && _shellToolbar?.Handler != null)
 			{
 				_shellToolbar.Handler.UpdateValue(nameof(Toolbar.TitleView));

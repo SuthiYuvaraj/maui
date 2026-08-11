@@ -63,14 +63,22 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				tabLayout.SetTabTextColors(materialUnselectedArgb, materialTitleArgb);
 
 				if (background is null)
+				{
 					tabLayout.SetBackground(_originalBackground);
+				}
 				else
+				{
 					tabLayout.SetBackground(new ColorDrawable(background.ToPlatform()));
+				}
 
 				if (foreground is not null)
+				{
 					tabLayout.SetSelectedTabIndicatorColor(foreground.ToPlatform());
+				}
 				else
+				{
 					tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
+				}
 
 				return;
 			}

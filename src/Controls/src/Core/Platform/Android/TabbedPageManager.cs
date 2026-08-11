@@ -685,25 +685,23 @@ public class TabbedPageManager
 
 	protected virtual void RefreshBarBackground()
 	{
+		bool shouldRestoreNativeBackground = RuntimeFeature.IsMaterial3Enabled &&
+			Brush.IsNullOrEmpty(_currentBarBackground) &&
+			Element.BarBackgroundColor is null;
+
 		if (IsBottomTabPlacement)
 		{
 			_bottomNavigationView.UpdateBackground(_currentBarBackground);
-			if (RuntimeFeature.IsMaterial3Enabled &&
-				Brush.IsNullOrEmpty(_currentBarBackground) &&
-				Element.BarBackgroundColor is null)
-			{
+
+			if (shouldRestoreNativeBackground)
 				RestoreBottomNavigationViewBackground();
-			}
 		}
 		else
 		{
 			_tabLayout.UpdateBackground(_currentBarBackground);
-			if (RuntimeFeature.IsMaterial3Enabled &&
-				Brush.IsNullOrEmpty(_currentBarBackground) &&
-				Element.BarBackgroundColor is null)
-			{
+
+			if (shouldRestoreNativeBackground)
 				RestoreTabLayoutBackground();
-			}
 		}
 	}
 

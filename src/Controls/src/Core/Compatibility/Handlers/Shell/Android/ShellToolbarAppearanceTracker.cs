@@ -14,6 +14,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 		bool _disposed;
 		bool _originalAppearanceCaptured;
 		Color _originalNativeTitleColor;
+		Drawable _originalNativeBackground;
 		IShellContext _shellContext;
 
 		public ShellToolbarAppearanceTracker(IShellContext shellContext)
@@ -72,7 +73,9 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			// the default (no custom appearance) M2 case, and syncing it here would overwrite
 			// that and unexpectedly darken overflow/hamburger icons.
 			if (RuntimeFeature.IsMaterial3Enabled)
+			{
 				toolbarTracker.TintColor = foreground ?? defaultForeground;
+			}
 		}
 
 		void RestoreNativeColors(AToolbar toolbar, IShellToolbarTracker toolbarTracker)
@@ -89,6 +92,13 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			shellToolbar.BarBackground = null;
 			shellToolbar.IconColor = _originalNativeTitleColor;
 			toolbarTracker.TintColor = _originalNativeTitleColor;
+
+			// shellToolbar.BarBackground = null (above) only clears the cross-platform Brush value;
+			// ToolbarExtensions.UpdateBarBackground -> ViewExtensions.UpdateBackground(AView, Paint?)
+			// only auto-clears the native background for LayoutViewGroup/ContentViewGroup, and AToolbar
+			// is neither, so it silently no-ops on the native side. Explicitly restore the real
+			// captured native background here so a previously-applied custom color doesn't get stuck.
+			toolbar.SetBackground(_originalNativeBackground);
 		}
 
 		// Shell.Toolbar.BarTextColor is a cross-platform Color, so unlike the TabLayout/BottomNavigationView
@@ -104,7 +114,14 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 			var context = toolbar?.Context;
 			if (context is not null)
+			{
 				_originalNativeTitleColor = Color.FromInt(context.GetThemeAttrColor(Resource.Attribute.colorOnSurface));
+			}
+
+			if (toolbar is not null)
+			{
+				_originalNativeBackground = toolbar.Background;
+			}
 
 			_originalAppearanceCaptured = true;
 		}
