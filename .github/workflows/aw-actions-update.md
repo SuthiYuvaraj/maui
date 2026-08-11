@@ -49,7 +49,6 @@ checkout:
 # Lets maintainers find every asset this workflow creates (PRs, comments).
 tracker-id: aw-actions-update
 
-model: gpt-5.6-sol
 engine:
   id: copilot
   env:

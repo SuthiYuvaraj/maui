@@ -97,16 +97,7 @@ public class Issue36154 : ContentPage
 			directionLabel.Text = $"Direction: {e.SwipeDirection}    Open: {e.IsOpen}";
 		};
 
-		var headerLabel = new Label
-		{
-			Text = "Swipe on WebView · scroll mid-page · swipe at edges",
-			HorizontalOptions = LayoutOptions.Center,
-			Margin = new Thickness(8),
-			FontSize = 13,
-			FontAttributes = FontAttributes.Bold
-		};
-
-		var grid = new Grid
+		Content = new Grid
 		{
 			RowDefinitions =
 			[
@@ -114,14 +105,22 @@ public class Issue36154 : ContentPage
 				new RowDefinition { Height = GridLength.Star },
 				new RowDefinition { Height = GridLength.Auto },
 				new RowDefinition { Height = GridLength.Auto },
-			]
+			],
+			Children =
+			{
+				new Label
+				{
+					Text = "Swipe on WebView · scroll mid-page · swipe at edges",
+					HorizontalOptions = LayoutOptions.Center,
+					Margin = new Thickness(8),
+					FontSize = 13,
+					FontAttributes = FontAttributes.Bold
+				}.Row(0),
+
+				swipeView.Row(1),
+				directionLabel.Row(2),
+				resultLabel.Row(3)
+			}
 		};
-
-		grid.Add(headerLabel, 0, 0);
-		grid.Add(swipeView, 0, 1);
-		grid.Add(directionLabel, 0, 2);
-		grid.Add(resultLabel, 0, 3);
-
-		Content = grid;
 	}
 }

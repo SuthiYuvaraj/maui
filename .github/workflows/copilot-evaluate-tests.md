@@ -53,7 +53,7 @@ permissions:
   issues: read
   pull-requests: read
 
-model: gpt-5.6-sol
+model: claude-sonnet-4.6
 engine:
   id: copilot
   env:

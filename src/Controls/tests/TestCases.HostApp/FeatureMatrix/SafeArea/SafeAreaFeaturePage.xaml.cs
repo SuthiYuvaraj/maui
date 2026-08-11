@@ -25,9 +25,4 @@ public partial class SafeAreaFeatureMainPage : ContentPage
 	{
 		Application.Current.Windows[0].Page = new SafeAreaContentPage(_viewModel);
 	}
-
-	private void OnContentViewSafeAreaButtonClicked(object sender, EventArgs e)
-    {
-        Application.Current.Windows[0].Page = new SafeAreaContentViewPage(_viewModel);
-    }
 }

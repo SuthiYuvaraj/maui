@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui;
-using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Controls.Xaml.Diagnostics;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Layouts;
@@ -87,7 +86,7 @@ namespace Microsoft.Maui.Controls
 
 		/// <summary>Bindable property for <see cref="IsClippedToBounds"/>.</summary>
 		public static readonly BindableProperty IsClippedToBoundsProperty =
-			BindableProperty.Create(nameof(IsClippedToBounds), typeof(bool), typeof(Layout), BooleanBoxes.FalseBox,
+			BindableProperty.Create(nameof(IsClippedToBounds), typeof(bool), typeof(Layout), false,
 				propertyChanged: IsClippedToBoundsPropertyChanged);
 
 		/// <summary>
@@ -97,7 +96,7 @@ namespace Microsoft.Maui.Controls
 		public bool IsClippedToBounds
 		{
 			get => (bool)GetValue(IsClippedToBoundsProperty);
-			set => SetValue(IsClippedToBoundsProperty, BooleanBoxes.Box(value));
+			set => SetValue(IsClippedToBoundsProperty, value);
 		}
 
 		static void IsClippedToBoundsPropertyChanged(BindableObject bindableObject, object oldValue, object newValue)
@@ -400,7 +399,7 @@ namespace Microsoft.Maui.Controls
 		public bool CascadeInputTransparent
 		{
 			get => (bool)GetValue(CascadeInputTransparentProperty);
-			set => SetValue(CascadeInputTransparentProperty, BooleanBoxes.Box(value));
+			set => SetValue(CascadeInputTransparentProperty, value);
 		}
 
 		private protected override string GetDebuggerDisplay()

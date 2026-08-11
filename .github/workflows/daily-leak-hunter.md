@@ -43,7 +43,7 @@ permissions:
   contents: read
   issues: read
 
-model: gpt-5.6-sol
+model: claude-opus-4.8
 engine:
   id: copilot
   env:

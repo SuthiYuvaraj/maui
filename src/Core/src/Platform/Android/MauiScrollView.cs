@@ -10,7 +10,6 @@ using Android.Views;
 using Android.Widget;
 using AndroidX.Core.View;
 using AndroidX.Core.Widget;
-using ALayoutDirection = Android.Views.LayoutDirection;
 
 namespace Microsoft.Maui.Platform
 {
@@ -27,23 +26,12 @@ namespace Microsoft.Maui.Platform
 		bool _didSafeAreaEdgeConfigurationChange = true;
 		bool _isInsetListenerSet;
 		Java.Lang.IRunnable? _setAppBarLiftTargetRunnable;
-		ALayoutDirection _prevLayoutDirection = ALayoutDirection.Ltr;
-		bool _checkedForRtlScroll;
 
 		internal float LastX { get; set; }
 		internal float LastY { get; set; }
 
 		internal bool ShouldSkipOnTouch;
 		internal int HorizontalScrollOffset => _hScrollView?.ScrollX ?? 0;
-
-		// Stores the parent touch listener so horizontal ScrollView taps can be forwarded to it directly.
-		internal IOnTouchListener? _touchListener;
-
-		public override void SetOnTouchListener(IOnTouchListener? touchListener)
-		{
-			_touchListener = touchListener;
-			base.SetOnTouchListener(touchListener);
-		}
 
 		public MauiScrollView(Context context) : base(context)
 		{
@@ -236,12 +224,6 @@ namespace Microsoft.Maui.Platform
 			bool orientationChanged = _scrollOrientation != orientation;
 			_scrollOrientation = orientation;
 
-			// Reset RTL tracking when orientation changes
-			if (orientationChanged)
-			{
-				_checkedForRtlScroll = false;
-			}
-
 			if (orientation == ScrollOrientation.Horizontal || orientation == ScrollOrientation.Both)
 			{
 				if (_hScrollView == null)
@@ -286,28 +268,6 @@ namespace Microsoft.Maui.Platform
 			}
 		}
 
-		internal void UpdateFlowDirection(IView view)
-		{
-			var layoutDirection = ViewExtensions.GetLayoutDirection(view);
-
-			// Handle FlowDirection specifically for horizontal scroll view
-			if (_hScrollView != null && _scrollOrientation == ScrollOrientation.Horizontal)
-			{
-				if (_prevLayoutDirection != layoutDirection)
-				{
-					_prevLayoutDirection = layoutDirection;
-					_hScrollView.LayoutDirection = layoutDirection;
-					_checkedForRtlScroll = false; // Reset to allow re-evaluation
-				}
-			}
-			else
-			{
-				// Fallback to default mechanism for other cases (vertical scroll or no horizontal scroll)
-				// Use the common ViewExtensions logic for standard FlowDirection handling
-				this.LayoutDirection = layoutDirection;
-			}
-		}
-
 		public override bool OnInterceptTouchEvent(MotionEvent? ev)
 		{
 			// See also MauiHorizontalScrollView notes in OnInterceptTouchEvent
@@ -337,7 +297,6 @@ namespace Microsoft.Maui.Platform
 				ShouldSkipOnTouch = false;
 				return false;
 			}
-
 
 			// The nested ScrollViews will allow us to scroll EITHER vertically OR horizontally in a single gesture.
 			// This will allow us to also scroll diagonally.
@@ -405,21 +364,6 @@ namespace Microsoft.Maui.Platform
 				hScrollViewHeight = _isBidirectional ? Math.Max(hScrollViewHeight, scrollViewContentHeight) : hScrollViewHeight;
 				_hScrollView.Layout(0, 0, hScrollViewWidth, hScrollViewHeight);
 			}
-
-			// Handle RTL initial positioning
-			if (!_checkedForRtlScroll && _hScrollView != null && _scrollOrientation == ScrollOrientation.Horizontal)
-			{
-				if (_hScrollView.LayoutDirection == ALayoutDirection.Rtl)
-				{
-					Post(() =>
-					{
-						// Scroll to the right end for RTL
-						_hScrollView?.ScrollTo(_hScrollView?.GetChildAt(0)?.Width ?? 0, 0);
-					});
-				}
-			}
-
-			_checkedForRtlScroll = true;
 
 			if (_didSafeAreaEdgeConfigurationChange && _isInsetListenerSet)
 			{
@@ -525,7 +469,6 @@ namespace Microsoft.Maui.Platform
 		void IOnScrollChangeListener.OnScrollChange(NestedScrollView? v, int scrollX, int scrollY, int oldScrollX, int oldScrollY)
 #pragma warning restore CA1822
 		{
-			_checkedForRtlScroll = true;
 			OnScrollChanged(scrollX, scrollY, oldScrollX, oldScrollY);
 		}
 	}
@@ -604,12 +547,6 @@ namespace Microsoft.Maui.Platform
 
 			if (!_parentScrollView.Enabled)
 				return false;
-
-			// OnTouchEvent is only called when no child has claimed the touch event, which mirrors
-			// exactly when a vertical ScrollView's touch listener fires. We invoke the parent's
-			// stored touch listener here so TapGestureRecognizers on a horizontal/both ScrollView
-			// fire correctly.
-			_parentScrollView._touchListener?.OnTouch(_parentScrollView, ev);
 
 			// If the touch is caught by the horizontal scrollview, forward it to the parent 
 			_parentScrollView.ShouldSkipOnTouch = true;

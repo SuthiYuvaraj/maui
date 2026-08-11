@@ -218,8 +218,8 @@ internal static class RefreshViewWebViewScrollCapture
 
 		internal void Reset()
 		{
-			_hasReportedState = false;
 			_canScrollUp = false;
+			_hasReportedState = false;
 		}
 	}
 }

@@ -34,14 +34,20 @@ namespace Microsoft.Maui.Controls
 
 		/// <summary>Bindable property for <see cref="InputTransparent"/>.</summary>
 		public static readonly BindableProperty InputTransparentProperty = BindableProperty.Create(
-			nameof(InputTransparent), typeof(bool), typeof(VisualElement), BooleanBoxes.FalseBox,
+			nameof(InputTransparent), typeof(bool), typeof(VisualElement), default(bool),
 			propertyChanged: OnInputTransparentPropertyChanged, coerceValue: CoerceInputTransparentProperty);
 
 		bool _isEnabledExplicit = (bool)IsEnabledProperty.DefaultValue;
 
+		/// <summary>
+		/// Gets the explicit value of <see cref="IsEnabled"/> set directly on this element,
+		/// before coercion by <see cref="IsEnabledCore"/> which factors in parent state.
+		/// </summary>
+		internal bool IsExplicitlyEnabled => _isEnabledExplicit;
+
 		/// <summary>Bindable property for <see cref="IsEnabled"/>.</summary>
 		public static readonly BindableProperty IsEnabledProperty = BindableProperty.Create(nameof(IsEnabled), typeof(bool),
-			typeof(VisualElement), BooleanBoxes.TrueBox, propertyChanged: OnIsEnabledPropertyChanged, coerceValue: CoerceIsEnabledProperty);
+			typeof(VisualElement), true, propertyChanged: OnIsEnabledPropertyChanged, coerceValue: CoerceIsEnabledProperty);
 
 		static readonly BindablePropertyKey XPropertyKey = BindableProperty.CreateReadOnly(nameof(X), typeof(double), typeof(VisualElement), default(double));
 
@@ -270,7 +276,7 @@ namespace Microsoft.Maui.Controls
 									propertyChanged: (b, o, n) => { (((VisualElement)b).AnchorX, ((VisualElement)b).AnchorY) = (Point)n; });
 
 		/// <summary>Bindable property for <see cref="IsVisible"/>.</summary>
-		public static readonly BindableProperty IsVisibleProperty = BindableProperty.Create(nameof(IsVisible), typeof(bool), typeof(VisualElement), BooleanBoxes.TrueBox,
+		public static readonly BindableProperty IsVisibleProperty = BindableProperty.Create(nameof(IsVisible), typeof(bool), typeof(VisualElement), true,
 			propertyChanged: (bindable, oldvalue, newvalue) => ((VisualElement)bindable).OnIsVisibleChanged((bool)oldvalue, (bool)newvalue));
 
 		/// <summary>Bindable property for <see cref="Opacity"/>.</summary>
@@ -636,7 +642,7 @@ namespace Microsoft.Maui.Controls
 		public bool InputTransparent
 		{
 			get { return (bool)GetValue(InputTransparentProperty); }
-			set { SetValue(InputTransparentProperty, BooleanBoxes.Box(value)); }
+			set { SetValue(InputTransparentProperty, value); }
 		}
 
 		/// <summary>
@@ -649,7 +655,7 @@ namespace Microsoft.Maui.Controls
 		public bool IsEnabled
 		{
 			get { return (bool)GetValue(IsEnabledProperty); }
-			set { SetValue(IsEnabledProperty, BooleanBoxes.Box(value)); }
+			set { SetValue(IsEnabledProperty, value); }
 		}
 
 		/// <summary>
@@ -722,7 +728,7 @@ namespace Microsoft.Maui.Controls
 		public bool IsVisible
 		{
 			get { return (bool)GetValue(IsVisibleProperty); }
-			set { SetValue(IsVisibleProperty, BooleanBoxes.Box(value)); }
+			set { SetValue(IsVisibleProperty, value); }
 		}
 
 		/// <summary>
@@ -1763,10 +1769,10 @@ namespace Microsoft.Maui.Controls
 			if (bindable is VisualElement visualElement)
 			{
 				visualElement._isEnabledExplicit = (bool)value;
-				return BooleanBoxes.Box(visualElement.IsEnabledCore);
+				return visualElement.IsEnabledCore;
 			}
 
-			return BooleanBoxes.FalseBox;
+			return false;
 		}
 
 		static void OnIsEnabledPropertyChanged(BindableObject bindable, object oldValue, object newValue)
@@ -1786,10 +1792,10 @@ namespace Microsoft.Maui.Controls
 			if (bindable is VisualElement visualElement)
 			{
 				visualElement._inputTransparentExplicit = (bool)value;
-				return BooleanBoxes.Box(visualElement.InputTransparentCore);
+				return visualElement.InputTransparentCore;
 			}
 
-			return BooleanBoxes.FalseBox;
+			return false;
 		}
 
 		static void OnInputTransparentPropertyChanged(BindableObject bindable, object oldValue, object newValue)
@@ -2099,7 +2105,7 @@ namespace Microsoft.Maui.Controls
 		bool IView.IsFocused
 		{
 			get => (bool)GetValue(IsFocusedProperty);
-			set => SetValue(IsFocusedPropertyKey, BooleanBoxes.Box(value), SetterSpecificity.FromHandler);
+			set => SetValue(IsFocusedPropertyKey, value, SetterSpecificity.FromHandler);
 		}
 
 		/// <inheritdoc/>

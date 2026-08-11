@@ -131,7 +131,7 @@ namespace Microsoft.Maui.Controls
 			private set => SetValue(IsActivatedPropertyKey, value);
 		}
 
-		string? ITitledElement.Title => Title ?? (Page as Shell)?.GetUserSetTitle();
+		string? ITitledElement.Title => Title ?? (Page as Shell)?.Title;
 
 		public Page? Page
 		{

@@ -37,7 +37,6 @@ namespace Microsoft.Maui.Maps.Handlers
 		List<APolygon>? _polygons;
 		List<ACircle>? _circles;
 		Dictionary<string, IMapElement>? _trackedMapElements;
-		HashSet<IMapPin>? _subscribedPins;
 
 		public GoogleMap? Map { get; private set; }
 
@@ -504,8 +503,7 @@ namespace Microsoft.Maui.Maps.Handlers
 					_markers.Add(marker!);
 				}
 
-				_subscribedPins ??= new HashSet<IMapPin>(ReferenceEqualityComparer.Instance);
-				if (_subscribedPins.Add(pin) && pin is INotifyPropertyChanged observable)
+				if (pin is INotifyPropertyChanged observable)
 				{
 					observable.PropertyChanged += PinOnPropertyChanged;
 				}
@@ -558,18 +556,17 @@ namespace Microsoft.Maui.Maps.Handlers
 
 		void DisconnectPins()
 		{
-			if (_subscribedPins is not null)
-			{
-				foreach (var pin in _subscribedPins)
-				{
-					if (pin is INotifyPropertyChanged observable)
-					{
-						observable.PropertyChanged -= PinOnPropertyChanged;
-					}
+			if (VirtualView == null)
+				return;
 
-					pin?.Handler?.DisconnectHandler();
+			for (int i = 0; i < VirtualView.Pins.Count; i++)
+			{
+				var pin = VirtualView.Pins[i];
+				if (pin is INotifyPropertyChanged observable)
+				{
+					observable.PropertyChanged -= PinOnPropertyChanged;
 				}
-				_subscribedPins = null;
+				pin?.Handler?.DisconnectHandler();
 			}
 		}
 

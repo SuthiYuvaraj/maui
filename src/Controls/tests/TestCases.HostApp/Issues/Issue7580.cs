@@ -64,7 +64,6 @@ public class Issue7580 : ContentPage
 		{
 			HeightRequest = 60,
 			BackgroundColor = Colors.LightGray,
-			AutomationId = "SwipeContent"
 		};
 		swipeContent.Add(new Label
 		{

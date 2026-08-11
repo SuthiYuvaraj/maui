@@ -617,20 +617,7 @@ namespace Microsoft.Maui.Platform
 			SetNeedsLayout();
 			InvalidateConstraintsCache();
 
-			return true;
-		}
-
-		/// <summary>
-	    /// Called when the scroll orientation has changed to trigger proper RTL layout recalculation.
-	    /// </summary>
-
-		internal void OnOrientationChanged()
-		{
-			// Reset the previous layout direction to force re-evaluation of RTL layout
-			if (EffectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirection.RightToLeft)
-			{
-				_previousEffectiveUserInterfaceLayoutDirection = null;
-			}
+			return !isPropagating;
 		}
 
 		/// <summary>

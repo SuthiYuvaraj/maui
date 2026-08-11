@@ -1,7 +1,6 @@
 #nullable disable
 using System;
 using System.ComponentModel;
-using Microsoft.Maui.Controls.Internals;
 using Microsoft.Maui.Graphics;
 
 namespace Microsoft.Maui.Controls
@@ -15,7 +14,7 @@ namespace Microsoft.Maui.Controls
 		public static readonly BindableProperty BackgroundColorProperty = BindableProperty.Create(nameof(BackgroundColor), typeof(Color), typeof(SwipeItem), null);
 
 		/// <summary>Bindable property for <see cref="IsVisible"/>.</summary>
-		public static readonly BindableProperty IsVisibleProperty = BindableProperty.Create(nameof(IsVisible), typeof(bool), typeof(SwipeItem), BooleanBoxes.TrueBox, propertyChanged: OnIsVisibleChanged);
+		public static readonly BindableProperty IsVisibleProperty = BindableProperty.Create(nameof(IsVisible), typeof(bool), typeof(SwipeItem), true, propertyChanged: OnIsVisibleChanged);
 
 		/// <summary>
 		/// Gets or sets the background color of the swipe item. This is a bindable property.
@@ -32,7 +31,7 @@ namespace Microsoft.Maui.Controls
 		public bool IsVisible
 		{
 			get { return (bool)GetValue(IsVisibleProperty); }
-			set { SetValue(IsVisibleProperty, BooleanBoxes.Box(value)); }
+			set { SetValue(IsVisibleProperty, value); }
 		}
 
 		public event EventHandler<EventArgs> Invoked;

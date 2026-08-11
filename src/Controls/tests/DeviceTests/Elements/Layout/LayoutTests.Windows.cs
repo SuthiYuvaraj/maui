@@ -28,6 +28,7 @@ namespace Microsoft.Maui.DeviceTests
 				Assert.Equal(view.InputTransparent, !handler.PlatformView.IsHitTestVisible);
 			}
 		}
+
 		void SetupLayoutBuilder()
 		{
 			EnsureHandlerCreated(builder =>
@@ -58,8 +59,8 @@ namespace Microsoft.Maui.DeviceTests
 			});
 		}
 
-		[Fact(DisplayName = "LayoutPanel AutomationPeer default control type is Custom with lowercase class name as localized type")]
-		public async Task LayoutPanelAutomationPeerDefaultControlTypeIsCustom()
+		[Fact(DisplayName = "LayoutPanel AutomationPeer control type is Pane")]
+		public async Task LayoutPanelAutomationPeerControlTypeIsPane()
 		{
 			SetupLayoutBuilder();
 
@@ -68,10 +69,7 @@ namespace Microsoft.Maui.DeviceTests
 			await AttachAndRun(grid, (LayoutHandler handler) =>
 			{
 				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.Equal(AutomationControlType.Custom, peer.GetAutomationControlType());
-				// UIA spec requires Custom elements to have a non-empty LocalizedControlType.
-				// For anonymous layouts, we return the lowercase cross-platform type name.
-				Assert.Equal("grid", peer.GetLocalizedControlType());
+				Assert.Equal(AutomationControlType.Pane, peer.GetAutomationControlType());
 			});
 		}
 
@@ -106,10 +104,10 @@ namespace Microsoft.Maui.DeviceTests
 			});
 		}
 
-		[Theory(DisplayName = "LayoutPanel AutomationId is exposed via the automation peer")]
+		[Theory(DisplayName = "LayoutPanel with AutomationId is exposed in automation tree")]
 		[InlineData(true)]
 		[InlineData(false)]
-		public async Task LayoutPanelAutomationIdIsExposedViaPeer(bool hasAutomationId)
+		public async Task LayoutPanelWithAutomationIdIsExposedInTree(bool hasAutomationId)
 		{
 			SetupLayoutBuilder();
 
@@ -120,8 +118,7 @@ namespace Microsoft.Maui.DeviceTests
 			await AttachAndRun(grid, (LayoutHandler handler) =>
 			{
 				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				var expected = hasAutomationId ? "TestGrid" : string.Empty;
-				Assert.Equal(expected, peer.GetAutomationId());
+				Assert.Equal(hasAutomationId, peer.IsContentElement());
 			});
 		}
 
@@ -139,139 +136,7 @@ namespace Microsoft.Maui.DeviceTests
 			});
 		}
 
-		[Fact(DisplayName = "LayoutPanel without automation signals is excluded from Control and Content views")]
-		public async Task LayoutPanelWithoutAutomationSignalsIsExcludedFromControlAndContentViews()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.False(peer.IsControlElement());
-				Assert.False(peer.IsContentElement());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel with AutomationId is included in Control view only")]
-		public async Task LayoutPanelWithAutomationIdIsIncludedInControlViewOnly()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid { AutomationId = "TestGrid" };
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-
-				Assert.Equal("TestGrid", peer.GetAutomationId());
-				Assert.True(peer.IsControlElement());
-				Assert.False(peer.IsContentElement());
-				Assert.Equal(AutomationControlType.Custom, peer.GetAutomationControlType());
-				// UIA spec requires Custom elements to have a non-empty LocalizedControlType.
-				Assert.Equal("grid", peer.GetLocalizedControlType());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel opts into Control view when AutomationProperties.IsInAccessibleTree is true")]
-		public async Task LayoutPanelOptsIntoControlViewViaIsInAccessibleTree()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-			AutomationProperties.SetIsInAccessibleTree(grid, true);
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.True(peer.IsControlElement());
-				Assert.True(peer.IsContentElement());
-				Assert.Equal(AutomationControlType.Pane, peer.GetAutomationControlType());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel opts into Control view when SemanticProperties.Description is set")]
-		public async Task LayoutPanelOptsIntoControlViewWhenDescriptionIsSet()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-			SemanticProperties.SetDescription(grid, "Welcome card");
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.True(peer.IsControlElement());
-				Assert.Equal(AutomationControlType.Pane, peer.GetAutomationControlType());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel opts into Control view when SemanticProperties.Hint is set")]
-		public async Task LayoutPanelOptsIntoControlViewWhenHintIsSet()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-			SemanticProperties.SetHint(grid, "Contains welcome card actions");
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.True(peer.IsControlElement());
-				Assert.Equal(AutomationControlType.Pane, peer.GetAutomationControlType());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel explicit accessible-tree opt out overrides AutomationId and SemanticProperties.Description")]
-		public async Task LayoutPanelAccessibleTreeOptOutOverridesAutomationIdAndDescription()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid { AutomationId = "TestGrid" };
-			SemanticProperties.SetDescription(grid, "Welcome card");
-			AutomationProperties.SetIsInAccessibleTree(grid, false);
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.Equal("TestGrid", peer.GetAutomationId());
-				Assert.False(peer.IsControlElement());
-				Assert.False(peer.IsContentElement());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel ignores whitespace-only SemanticProperties.Description")]
-		public async Task LayoutPanelDoesNotOptIntoControlViewWhenDescriptionIsWhitespace()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-			SemanticProperties.SetDescription(grid, "   ");
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.False(peer.IsControlElement());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel ignores whitespace-only SemanticProperties.Hint")]
-		public async Task LayoutPanelDoesNotOptIntoControlViewWhenHintIsWhitespace()
-		{
-			SetupLayoutBuilder();
-
-			var grid = new Grid();
-			SemanticProperties.SetHint(grid, "   ");
-
-			await AttachAndRun(grid, (LayoutHandler handler) =>
-			{
-				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
-				Assert.False(peer.IsControlElement());
-			});
-		}
-
-		[Fact(DisplayName = "LayoutPanel AutomationId is exposed via the peer when set at runtime")]
+		[Fact(DisplayName = "LayoutPanel IsControlElement and IsContentElement update when AutomationId is set at runtime")]
 		public async Task LayoutPanelAutomationPeerUpdatesWhenAutomationIdChangesAtRuntime()
 		{
 			SetupLayoutBuilder();
@@ -282,15 +147,17 @@ namespace Microsoft.Maui.DeviceTests
 			{
 				var peer = FrameworkElementAutomationPeer.CreatePeerForElement(handler.PlatformView);
 
-				// Initially no AutomationId.
-				Assert.Equal(string.Empty, peer.GetAutomationId());
+				// Initially no AutomationId — should NOT be exposed
+				Assert.False(peer.IsContentElement());
 
-				// Set AutomationId at runtime -- peer should reflect the new value.
+				// Set AutomationId at runtime — should now be exposed.
 				// Note: MAUI AutomationId is write-once (Element.cs enforces this),
-				// so we can only test the transition from unset -> set, not set -> cleared.
+				// so we can only test the transition from unset → set, not set → cleared.
 				grid.AutomationId = "DynamicGrid";
-				Assert.Equal("DynamicGrid", peer.GetAutomationId());
+				Assert.True(peer.IsContentElement());
 			});
 		}
 	}
 }
+
+
