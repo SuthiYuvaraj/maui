@@ -56,8 +56,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				// using its own DefaultColor as the GetColorForState fallback (matches the pattern used
 				// by ShellBottomNavViewAppearanceTracker.MakeColorStateList). CaptureNativeColors always
 				// runs before SetColors on Material3, so _originalTextColors is guaranteed non-null here.
-				var materialTitleArgb = title?.ToPlatform().ToArgb() ?? _originalTextColors.GetColorForState(
-					new[] { R.Attribute.StateSelected }, new global::Android.Graphics.Color(_originalTextColors.DefaultColor));
+				var materialTitleArgb = title?.ToPlatform().ToArgb() ?? _originalTextColors.DefaultColor;
 				var materialUnselectedArgb = unselected?.ToPlatform().ToArgb() ?? _originalTextColors.DefaultColor;
 
 				tabLayout.SetTabTextColors(materialUnselectedArgb, materialTitleArgb);
@@ -79,16 +78,15 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				{
 					tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
 				}
-
-				return;
 			}
-
-			var titleArgb = title.ToPlatform(ShellRenderer.DefaultTitleColor).ToArgb();
-			var unselectedArgb = unselected.ToPlatform(ShellRenderer.DefaultUnselectedColor).ToArgb();
-
-			tabLayout.SetTabTextColors(unselectedArgb, titleArgb);
-			tabLayout.SetBackground(new ColorDrawable(background.ToPlatform(ShellRenderer.DefaultBackgroundColor)));
-			tabLayout.SetSelectedTabIndicatorColor(foreground.ToPlatform(ShellRenderer.DefaultForegroundColor));
+			else
+			{
+				var titleArgb = title.ToPlatform(ShellRenderer.DefaultTitleColor).ToArgb();
+				var unselectedArgb = unselected.ToPlatform(ShellRenderer.DefaultUnselectedColor).ToArgb();
+				tabLayout.SetTabTextColors(unselectedArgb, titleArgb);
+				tabLayout.SetBackground(new ColorDrawable(background.ToPlatform(ShellRenderer.DefaultBackgroundColor)));
+				tabLayout.SetSelectedTabIndicatorColor(foreground.ToPlatform(ShellRenderer.DefaultForegroundColor));
+			}
 		}
 
 		internal void CaptureNativeColors(TabLayout tabLayout)
@@ -108,7 +106,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (!_originalAppearanceCaptured)
 				return;
 
-			tabLayout.TabTextColors = _originalTextColors;
+			tabLayout.SetTabTextColors(_originalTextColors.DefaultColor, _originalTextColors.DefaultColor);
 			tabLayout.SetBackground(_originalBackground);
 			tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
 		}

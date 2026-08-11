@@ -1,6 +1,8 @@
 #nullable disable
+using Android.Content.Res;
 using Android.Graphics.Drawables;
 using AndroidX.AppCompat.Widget;
+using Google.Android.Material.Shape;
 using Microsoft.Maui.Controls.Handlers.Compatibility;
 using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Platform;
@@ -14,7 +16,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 		bool _disposed;
 		bool _originalAppearanceCaptured;
 		Color _originalNativeTitleColor;
-		Drawable _originalNativeBackground;
+		Color _originalNativeBackgroundColor;
 		IShellContext _shellContext;
 
 		public ShellToolbarAppearanceTracker(IShellContext shellContext)
@@ -56,25 +58,17 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (shellToolbar is null)
 				return;
 
-			var defaultBackground = RuntimeFeature.IsMaterial3Enabled ? null : ShellRenderer.DefaultBackgroundColor;
-			// Material3's Top App Bar spec uses the same onSurface color for both the title and
-			// the navigation icon, so the already-captured _originalNativeTitleColor is reused here
-			// as the icon default too instead of leaving it null (which left ToolbarExtensions.UpdateIconColor
-			// with nothing to apply, causing the flyout/back icon to go invisible on Material3).
-			var defaultForeground = RuntimeFeature.IsMaterial3Enabled ? _originalNativeTitleColor : ShellRenderer.DefaultForegroundColor;
-			var defaultTitle = RuntimeFeature.IsMaterial3Enabled ? _originalNativeTitleColor : ShellRenderer.DefaultTitleColor;
-			var barBackground = background ?? defaultBackground;
-			shellToolbar.BarTextColor = title ?? defaultTitle;
-			shellToolbar.BarBackground = barBackground is null ? null : new SolidColorBrush(barBackground);
-			shellToolbar.IconColor = foreground ?? defaultForeground;
-
-			// Only sync the toolbar's menu-item/hamburger tint on Material3. On Material2 this
-			// must stay untouched: IShellToolbarTracker.TintColor has its own White fallback for
-			// the default (no custom appearance) M2 case, and syncing it here would overwrite
-			// that and unexpectedly darken overflow/hamburger icons.
 			if (RuntimeFeature.IsMaterial3Enabled)
 			{
-				toolbarTracker.TintColor = foreground ?? defaultForeground;
+				shellToolbar.BarTextColor = title ?? _originalNativeTitleColor;
+				shellToolbar.BarBackground = new SolidColorBrush(background ?? _originalNativeBackgroundColor);
+				shellToolbar.IconColor = foreground ?? _originalNativeTitleColor;
+			}
+			else
+			{
+				shellToolbar.BarTextColor = title ?? ShellRenderer.DefaultTitleColor;
+				shellToolbar.BarBackground = new SolidColorBrush(background ?? ShellRenderer.DefaultBackgroundColor);
+				shellToolbar.IconColor = foreground ?? ShellRenderer.DefaultForegroundColor;
 			}
 		}
 
@@ -89,16 +83,10 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				return;
 
 			shellToolbar.BarTextColor = _originalNativeTitleColor;
-			shellToolbar.BarBackground = null;
+			shellToolbar.BarBackground = _originalNativeBackgroundColor is not null ? new SolidColorBrush(_originalNativeBackgroundColor) : null;
 			shellToolbar.IconColor = _originalNativeTitleColor;
 			toolbarTracker.TintColor = _originalNativeTitleColor;
 
-			// shellToolbar.BarBackground = null (above) only clears the cross-platform Brush value;
-			// ToolbarExtensions.UpdateBarBackground -> ViewExtensions.UpdateBackground(AView, Paint?)
-			// only auto-clears the native background for LayoutViewGroup/ContentViewGroup, and AToolbar
-			// is neither, so it silently no-ops on the native side. Explicitly restore the real
-			// captured native background here so a previously-applied custom color doesn't get stuck.
-			toolbar.SetBackground(_originalNativeBackground);
 		}
 
 		// Shell.Toolbar.BarTextColor is a cross-platform Color, so unlike the TabLayout/BottomNavigationView
@@ -117,10 +105,9 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			{
 				_originalNativeTitleColor = Color.FromInt(context.GetThemeAttrColor(Resource.Attribute.colorOnSurface));
 			}
-
-			if (toolbar is not null)
+			if (toolbar?.Background is MaterialShapeDrawable materialShapeDrawable && materialShapeDrawable.FillColor is ColorStateList fillColor)
 			{
-				_originalNativeBackground = toolbar.Background;
+				_originalNativeBackgroundColor = Color.FromInt(fillColor.DefaultColor);
 			}
 
 			_originalAppearanceCaptured = true;
