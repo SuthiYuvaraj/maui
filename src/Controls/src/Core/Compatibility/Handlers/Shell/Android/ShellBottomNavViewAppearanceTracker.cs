@@ -93,10 +93,39 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (_originalAppearanceCaptured)
 				return;
 
-			_originalItemTextColor = bottomView.ItemTextColor;
-			_originalItemIconTint = bottomView.ItemIconTintList;
+			_originalItemTextColor = FixMissingDisabledColor(bottomView.ItemTextColor);
+			_originalItemIconTint = FixMissingDisabledColor(bottomView.ItemIconTintList);
 			_originalBackground = bottomView.Background;
 			_originalAppearanceCaptured = true;
+		}
+
+		// The native BottomNavigationView ColorStateList captured for M3 typically has no distinct
+		// entry for the disabled (-StateEnabled) state, so GetColorForState in MakeColorStateList below
+		// silently falls through to the same value as unselected/default - the disabled tab then renders
+		// visually identical to an unselected one instead of looking disabled. Correct that once here, at
+		// capture time, by deriving a real disabled color from the list's own DefaultColor dimmed to 38%
+		// alpha (the standard Material "disabled content" opacity) - no theme attribute lookup required.
+		static ColorStateList FixMissingDisabledColor(ColorStateList nativeList)
+		{
+			if (nativeList is null || !RuntimeFeature.IsMaterial3Enabled)
+				return nativeList;
+
+			var defaultColor = nativeList.DefaultColor;
+			// Must include +StateEnabled alongside +StateChecked: a negative spec entry like
+			// {-StateEnabled} matches whenever the queried state array simply omits +StateEnabled, so
+			// querying with only {StateChecked} would incorrectly match the disabled spec first (specs
+			// are tested in declaration order) instead of the checked spec, returning the disabled color.
+			var checkedColor = nativeList.GetColorForState(new[] { R.Attribute.StateEnabled, R.Attribute.StateChecked }, new AColor(defaultColor));
+			var disabledColor = DimAlpha(defaultColor, 0.38f);
+
+			return MakeColorStateList(checkedColor, disabledColor, defaultColor);
+		}
+
+		static int DimAlpha(int argb, float alphaFraction)
+		{
+			var color = new AColor(argb);
+			var alpha = (int)(255 * alphaFraction);
+			return AColor.Argb(alpha, color.R, color.G, color.B);
 		}
 
 		void RestoreBackground(BottomNavigationView bottomView)
@@ -182,7 +211,9 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				disabledColor.ToPlatform().ToArgb();
 
 			var checkedInt = titleColor == null ?
-				defaultList.GetColorForState(new[] { R.Attribute.StateChecked }, AColor.Black) :
+				// Same +StateEnabled + +StateChecked requirement as FixMissingDisabledColor above -
+				// omitting +StateEnabled here would incorrectly match the {-StateEnabled} spec first.
+				defaultList.GetColorForState(new[] { R.Attribute.StateEnabled, R.Attribute.StateChecked }, AColor.Black) :
 				titleColor.ToPlatform().ToArgb();
 
 			var defaultColor = unselectedColor == null ?
