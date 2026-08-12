@@ -108,16 +108,6 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 			_originalTextColors = tabLayout.TabTextColors;
 			_originalBackground = tabLayout.Background;
-
-			// Don't just hold a reference to the live indicator drawable: SetSelectedTabIndicatorColor
-			// tints that exact Drawable instance in place (it calls Drawable.Mutate() internally so the
-			// instance can be recolored), so a plain reference capture here gets silently corrupted the
-			// first time a custom ForegroundColor is applied, and RestoreNativeColors then "restores" the
-			// already-tinted drawable instead of the real native default. Cloning via ConstantState gives
-			// us an independent Drawable instance that later mutation of the live one can't affect - the
-			// same "never hold onto something that can be mutated out from under you" pattern already used
-			// by ShellBottomNavViewAppearanceTracker (which always builds fresh ColorStateLists instead of
-			// mutating captured native ones).
 			var liveIndicator = tabLayout.TabSelectedIndicator;
 			_originalIndicatorDrawable = liveIndicator?.GetConstantState()?.NewDrawable() ?? liveIndicator;
 
@@ -145,7 +135,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (!_originalAppearanceCaptured)
 				return;
 
-			tabLayout.SetTabTextColors(_originalTextColors.DefaultColor, _originalTextColors.DefaultColor);
+			tabLayout.TabTextColors = _originalTextColors;
 			tabLayout.SetBackground(_originalBackground);
 			tabLayout.SetSelectedTabIndicator(_originalIndicatorDrawable);
 
