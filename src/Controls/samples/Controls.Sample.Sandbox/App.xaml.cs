@@ -9,16 +9,8 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		// To test shell scenarios, change this to true
-		bool useShell = false;
-
-		if (!useShell)
-		{
-			return new Window(new NavigationPage(new MainPage()));
-		}
-		else
-		{
-			return new Window(new SandboxShell());
-		}
+		// To test runtime highlight-color changes for TabbedPage/Shell tabs/Toolbar,
+		// launch the dedicated launcher page directly (no Shell at the window root).
+		return new Window(new NavigationPage(new RuntimeAppearanceTestLauncherPage()));
 	}
 }

@@ -1,0 +1,26 @@
+﻿<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       x:Class="Maui.Controls.Sample.RuntimeShellTabsTestShell"
+       xmlns:local="clr-namespace:Maui.Controls.Sample"
+       Title="Shell Tabs Highlight Test">
+    <TabBar>
+        <Tab Title="Tab 1"
+             Icon="dotnet_bot.png">
+            <ShellContent Title="Tab 1"
+                          ContentTemplate="{DataTemplate local:RuntimeShellTabsTestContentPage}"
+                          Route="RuntimeShellTab1"/>
+        </Tab>
+        <Tab Title="Tab 2"
+             Icon="dotnet_bot.png">
+            <ShellContent Title="Tab 2"
+                          ContentTemplate="{DataTemplate local:RuntimeShellTabsTestContentPage}"
+                          Route="RuntimeShellTab2"/>
+        </Tab>
+        <Tab Title="Tab 3"
+             Icon="dotnet_bot.png">
+            <ShellContent Title="Tab 3"
+                          ContentTemplate="{DataTemplate local:RuntimeShellTabsTestContentPage}"
+                          Route="RuntimeShellTab3"/>
+        </Tab>
+    </TabBar>
+</Shell>

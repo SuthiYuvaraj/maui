@@ -1,0 +1,38 @@
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Maui.Controls.Sample.RuntimeAppearanceTestLauncherPage"
+             Title="Runtime Appearance Tests">
+        <ScrollView Padding="20">
+                <VerticalStackLayout Spacing="16">
+                        <Label Text="Runtime Highlight Color Tests"
+                               FontSize="20"
+                               FontAttributes="Bold"/>
+                        <Label Text="Each test lets you change the selected/highlight colors at runtime and verify the UI updates correctly."
+                               FontSize="14"/>
+
+                        <Button x:Name="TabbedPageTestButton"
+                                Text="TabbedPage Highlight Test"
+                                Clicked="OnTabbedPageTestClicked"/>
+
+                        <Button x:Name="ShellTabsTestButton"
+                                Text="Shell Bottom Tabbar Highlight Test"
+                                Clicked="OnShellTabsTestClicked"/>
+
+                        <Button x:Name="ShellTopTabsTestButton"
+                                Text="Shell Top Tabbar Highlight Test"
+                                Clicked="OnShellTopTabsTestClicked"/>
+
+                        <Button x:Name="ShellFlyoutTestButton"
+                                Text="Shell Flyout Highlight Test"
+                                Clicked="OnShellFlyoutTestClicked"/>
+
+                        <Button x:Name="ShellDisabledColorTestButton"
+                                Text="Shell Disabled Color Test"
+                                Clicked="OnShellDisabledColorTestClicked"/>
+
+                        <Button x:Name="ToolbarTestButton"
+                                Text="Toolbar Highlight Test"
+                                Clicked="OnToolbarTestClicked"/>
+                </VerticalStackLayout>
+        </ScrollView>
+</ContentPage>
