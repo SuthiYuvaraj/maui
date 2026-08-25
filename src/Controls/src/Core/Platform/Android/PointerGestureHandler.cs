@@ -30,6 +30,7 @@ namespace Microsoft.Maui.Controls.Platform
 				return false;
 
 			var platformPointerArgs = new PlatformPointerEventArgs(control, e);
+			var position = e.CapturePosition();
 
 			foreach (var gesture in view.GetCompositeGestureRecognizers())
 			{
@@ -39,13 +40,13 @@ namespace Microsoft.Maui.Controls.Platform
 					switch (e.Action)
 					{
 						case MotionEventActions.HoverEnter:
-							pgr.SendPointerEntered(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
+							pgr.SendPointerEntered(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
 							break;
 						case MotionEventActions.HoverMove:
-							pgr.SendPointerMoved(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
+							pgr.SendPointerMoved(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
 							break;
 						case MotionEventActions.HoverExit:
-							pgr.SendPointerExited(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
+							pgr.SendPointerExited(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs);
 							break;
 					}
 				}
@@ -67,6 +68,7 @@ namespace Microsoft.Maui.Controls.Platform
 				return false;
 
 			var platformPointerArgs = new PlatformPointerEventArgs(control, e);
+			var position = e.CapturePosition();
 
 			foreach (var gesture in view.GetCompositeGestureRecognizers())
 			{
@@ -84,21 +86,21 @@ namespace Microsoft.Maui.Controls.Platform
 							effectiveButton = current;
 							if (!CheckButtonMask(pgr, effectiveButton))
 								continue;
-							pgr.SendPointerPressed(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
+							pgr.SendPointerPressed(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
 							break;
 						case MotionEventActions.Move:
 							// Keep reporting the button that initiated the press if one is active
 							effectiveButton = _activeButton ?? current;
 							if (!CheckButtonMask(pgr, effectiveButton))
 								continue;
-							pgr.SendPointerMoved(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
+							pgr.SendPointerMoved(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
 							break;
 						case MotionEventActions.Up:
 							// ACTION_UP does not carry ActionButton. Use the active one if available.
 							effectiveButton = _activeButton ?? current;
 							if (!CheckButtonMask(pgr, effectiveButton))
 								continue;
-							pgr.SendPointerReleased(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
+							pgr.SendPointerReleased(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
 							// Clear active button after release
 							_activeButton = null;
 							break;
@@ -107,7 +109,7 @@ namespace Microsoft.Maui.Controls.Platform
 							effectiveButton = _activeButton ?? current;
 							if (!CheckButtonMask(pgr, effectiveButton))
 								continue;
-							pgr.SendPointerExited(view, (relativeTo) => e.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
+							pgr.SendPointerExited(view, (relativeTo) => position.CalculatePosition(GetView(), relativeTo), platformPointerArgs, effectiveButton);
 							_activeButton = null;
 							break;
 					}

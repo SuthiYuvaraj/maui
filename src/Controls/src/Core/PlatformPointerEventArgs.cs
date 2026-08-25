@@ -38,6 +38,11 @@ public class PlatformPointerEventArgs
 	/// <summary>
 	/// Gets the native event or handler attached to the view.
 	/// </summary>
+	/// <remarks>
+	/// Android may recycle and reuse this <see cref="Android.Views.MotionEvent"/> once the current
+	/// input dispatch returns, so only read values from it synchronously; do not store it or read
+	/// from it after an <see langword="await"/> or other deferred callback.
+	/// </remarks>
 	public MotionEvent MotionEvent { get; }
 
 	internal PlatformPointerEventArgs(AView sender, MotionEvent motionEvent)

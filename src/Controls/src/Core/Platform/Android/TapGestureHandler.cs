@@ -36,6 +36,9 @@ namespace Microsoft.Maui.Controls.Platform
 			else
 				point = new Point(e.GetX(), e.GetY());
 
+			// Snapshot the coordinates now; the MotionEvent may be recycled once this method returns.
+			MotionEventPosition? capturedPosition = e?.CapturePosition();
+
 			var view = GetView();
 
 			if (view == null)
@@ -52,7 +55,7 @@ namespace Microsoft.Maui.Controls.Platform
 					if (!CheckButtonMask(recognizer, e))
 						continue;
 
-					recognizer.SendTapped(view, (view) => e.CalculatePosition(GetView(), view));
+					recognizer.SendTapped(view, (relativeTo) => capturedPosition?.CalculatePosition(GetView(), relativeTo));
 					captured = true;
 				}
 			}
@@ -66,7 +69,7 @@ namespace Microsoft.Maui.Controls.Platform
 				if (!CheckButtonMask(gestureRecognizer, e))
 					continue;
 
-				gestureRecognizer.SendTapped(view, (view) => e.CalculatePosition(GetView(), view));
+				gestureRecognizer.SendTapped(view, (relativeTo) => capturedPosition?.CalculatePosition(GetView(), relativeTo));
 				captured = true;
 			}
 
