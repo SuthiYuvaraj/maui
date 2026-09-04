@@ -44,7 +44,10 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 
 		public virtual void ResetAppearance(BottomNavigationView bottomView)
 		{
-			if (RuntimeFeature.IsMaterial3Enabled)
+			// If a custom renderer never called CaptureNativeAppearance, _originalItemIconTint/
+			// _originalItemTextColor/_originalBackground stay null - fall back to the M2-style defaults
+			// instead of nulling out the bottom nav's icon/text colors and background.
+			if (RuntimeFeature.IsMaterial3Enabled && _originalAppearanceCaptured)
 			{
 				bottomView.ItemIconTintList = _originalItemIconTint;
 				bottomView.ItemTextColor = _originalItemTextColor;
@@ -82,7 +85,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			bottomView.ItemTextColor = _itemTextColor;
 			bottomView.ItemIconTintList = _itemIconTint;
 
-			if (backgroundColor is null && RuntimeFeature.IsMaterial3Enabled)
+			if (backgroundColor is null && RuntimeFeature.IsMaterial3Enabled && _originalAppearanceCaptured)
 				RestoreBackground(bottomView);
 			else
 				SetBackgroundColor(bottomView, backgroundColor);
