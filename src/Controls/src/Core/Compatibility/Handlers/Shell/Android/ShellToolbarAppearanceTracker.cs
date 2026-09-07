@@ -15,8 +15,11 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 	{
 		bool _disposed;
 		bool _originalAppearanceCaptured;
-		Color _originalNativeTitleColor;
-		Color _originalNativeBackgroundColor;
+		// Defaults to the M2 fallback so BarTextColor/BarBackground/IconColor are never null even if
+		// a custom renderer never calls CaptureNativeColors; CaptureNativeColors overwrites these with
+		// the real native values once it runs.
+		Color _originalNativeTitleColor = ShellRenderer.DefaultTitleColor;
+		Color _originalNativeBackgroundColor = ShellRenderer.DefaultBackgroundColor;
 		IShellContext _shellContext;
 
 		public ShellToolbarAppearanceTracker(IShellContext shellContext)
@@ -84,7 +87,7 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 				return;
 
 			shellToolbar.BarTextColor = _originalNativeTitleColor;
-			shellToolbar.BarBackground = _originalNativeBackgroundColor is not null ? new SolidColorBrush(_originalNativeBackgroundColor) : null;
+			shellToolbar.BarBackground = new SolidColorBrush(_originalNativeBackgroundColor);
 			shellToolbar.IconColor = _originalNativeTitleColor;
 			toolbarTracker.TintColor = _originalNativeTitleColor;
 
@@ -109,6 +112,13 @@ namespace Microsoft.Maui.Controls.Platform.Compatibility
 			if (toolbar?.Background is MaterialShapeDrawable materialShapeDrawable && materialShapeDrawable.FillColor is ColorStateList fillColor)
 			{
 				_originalNativeBackgroundColor = Color.FromInt(fillColor.DefaultColor);
+			}
+			else if (toolbar?.Background is ColorDrawable colorDrawable)
+			{
+				// A freshly-inflated Toolbar commonly has a plain ColorDrawable background rather than
+				// a MaterialShapeDrawable - without this branch the capture above silently "succeeds"
+				// with a null color, and the once-only guard means it's never retried.
+				_originalNativeBackgroundColor = Color.FromInt(colorDrawable.Color);
 			}
 
 			_originalAppearanceCaptured = true;
