@@ -98,10 +98,11 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 				// for every cell on every layout pass.
 				var spanSizeLookup = gridLayoutManager.GetSpanSizeLookup();
 				int spanCount = gridLayoutManager.SpanCount;
-				int spanIndex = spanSizeLookup.GetSpanIndex(position, spanCount);
-				int spanSize = spanSizeLookup.GetSpanSize(position);
-				rowCol = spanSizeLookup.GetSpanGroupIndex(position, spanCount);
-				lastRowCol = spanSizeLookup.GetSpanGroupIndex(itemCount - 1, spanCount);
+				isInFirstRowCol = IsInFirstSpanGroup(spanSizeLookup, position, spanCount);
+				isInLastRowCol = IsInLastSpanGroup(spanSizeLookup, view, position, itemCount, spanCount);
+
+				int spanIndex = GetSpanIndex(spanSizeLookup, view, position, spanCount);
+				int spanSize = GetSpanSize(spanSizeLookup, view, position);
 
 				if (_orientation == ItemsLayoutOrientation.Vertical)
 				{
@@ -152,6 +153,84 @@ namespace Microsoft.Maui.Controls.Handlers.Items
 		{
 			start = (int)((long)spacing * spanIndex / spanCount);
 			end = spacing - (int)((long)spacing * (spanIndex + spanSize) / spanCount);
+		}
+
+		static bool IsInFirstSpanGroup(GridLayoutManager.SpanSizeLookup spanSizeLookup, int position, int spanCount)
+		{
+			// Every item occupies at least one span, so the first row holds at most spanCount items.
+			if (position >= spanCount)
+			{
+				return false;
+			}
+
+			int span = 0;
+
+			for (int i = 0; i <= position; i++)
+			{
+				int spanSize = spanSizeLookup.GetSpanSize(i);
+
+				// Item i did not fit on the first row, so neither does anything after it.
+				if (span + spanSize > spanCount)
+				{
+					return false;
+				}
+
+				span += spanSize;
+			}
+
+			return true;
+		}
+
+		static bool IsInLastSpanGroup(GridLayoutManager.SpanSizeLookup spanSizeLookup, AView view, int position, int itemCount, int spanCount)
+		{
+			// Every item occupies at least one span, so the last row holds at most spanCount items.
+			if (itemCount - 1 - position >= spanCount)
+			{
+				return false;
+			}
+
+			int span = GetSpanIndex(spanSizeLookup, view, position, spanCount) + GetSpanSize(spanSizeLookup, view, position);
+
+			for (int i = position + 1; i < itemCount; i++)
+			{
+				int spanSize = spanSizeLookup.GetSpanSize(i);
+
+				// Item i starts a new row, so `position` is not on the last one.
+				if (span + spanSize > spanCount)
+				{
+					return false;
+				}
+
+				span += spanSize;
+			}
+
+			return true;
+		}
+
+		static int GetSpanSize(GridLayoutManager.SpanSizeLookup spanSizeLookup, AView view, int position)
+		{
+			// Avoid scanning the grouped adapter when native spans have already been assigned.
+			if (view.LayoutParameters is GridLayoutManager.LayoutParams layoutParams
+				&& layoutParams.SpanIndex != GridLayoutManager.LayoutParams.InvalidSpanId
+				&& layoutParams.SpanSize > 0)
+			{
+				return layoutParams.SpanSize;
+			}
+
+			return spanSizeLookup.GetSpanSize(position);
+		}
+
+		static int GetSpanIndex(GridLayoutManager.SpanSizeLookup spanSizeLookup, AView view, int position, int spanCount)
+		{
+			// GridLayoutManager assigns spans to the whole row before measuring its children, so the
+			// LayoutParams already hold the answer; fall back to the lookup for anything not yet assigned.
+			if (view.LayoutParameters is GridLayoutManager.LayoutParams layoutParams
+				&& layoutParams.SpanIndex != GridLayoutManager.LayoutParams.InvalidSpanId)
+			{
+				return layoutParams.SpanIndex;
+			}
+
+			return spanSizeLookup.GetSpanIndex(position, spanCount);
 		}
 	}
 }
