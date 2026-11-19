@@ -767,6 +767,16 @@ namespace Microsoft.Maui.Controls.Platform
 			bool dragFound = false;
 			bool dropFound = false;
 
+			// Feed the activation input to the role resolver before the Button trait/grouping
+			// below, so gesture changes after connection re-evaluate participation.
+			if (PlatformView != null && _handler.VirtualView is View gestureView)
+			{
+				global::Microsoft.Maui.Platform.AccessibilityRoleResolver.SetHasActivationGesture(
+					PlatformView,
+					gestureView,
+					gestureView.HasAccessibleTapGesture() || gestureView.HasAccessibleLongPressGesture());
+			}
+
 			if (PlatformView != null &&
 				_handler.VirtualView is View v &&
 				(v.HasAccessibleTapGesture() || v.HasAccessibleLongPressGesture()) &&

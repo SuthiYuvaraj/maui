@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.Maui.Platform;
 using UIKit;
 
 namespace Microsoft.Maui.Controls
@@ -10,35 +11,28 @@ namespace Microsoft.Maui.Controls
 	{
 		public static void MapAutomationPropertiesIsInAccessibleTree(IElementHandler handler, Element element)
 		{
-			// If the user hasn't set IsInAccessibleTree then just don't do anything
-			if (!element.IsSet(AutomationProperties.IsInAccessibleTreeProperty))
+			if (handler.PlatformView is not UIView control)
 				return;
 
-			var Control = handler.PlatformView as UIView;
+			// Participation is owned by AccessibilityRoleResolver so this override, semantics,
+			// gestures and handler defaults are resolved together, and clearing it restores the default.
+			bool? value = element.IsSet(AutomationProperties.IsInAccessibleTreeProperty)
+				? (bool?)element.GetValue(AutomationProperties.IsInAccessibleTreeProperty)
+				: null;
 
-			// iOS sets the default value for IsAccessibilityElement late in the layout cycle
-			// But if we set it to false ourselves then that causes it to act like it's false
-
-			// from the docs:
-			// https://developer.apple.com/documentation/objectivec/nsobject/1615141-isaccessibilityelement
-			// The default value for this property is false unless the receiver is a standard UIKit control,
-			// in which case the value is true.
-			//
-			// So we just base the default on that logic				
-			var _defaultIsAccessibilityElement = Control.IsAccessibilityElement || Control is UIControl;
-
-			Control.IsAccessibilityElement = (bool)((bool?)element.GetValue(AutomationProperties.IsInAccessibleTreeProperty) ?? _defaultIsAccessibilityElement);
+			AccessibilityRoleResolver.SetIsInAccessibleTree(control, handler.VirtualView as IView, value);
 		}
 
 		public static void MapAutomationPropertiesExcludedWithChildren(IElementHandler handler, Element view)
 		{
-			if (!view.IsSet(AutomationProperties.ExcludedWithChildrenProperty))
+			if (handler.PlatformView is not UIView control)
 				return;
 
-			var Control = handler.PlatformView as UIView;
+			bool? value = view.IsSet(AutomationProperties.ExcludedWithChildrenProperty)
+				? (bool?)view.GetValue(AutomationProperties.ExcludedWithChildrenProperty)
+				: null;
 
-			var _defaultAccessibilityElementsHidden = Control.AccessibilityElementsHidden || Control is UIControl;
-			Control.AccessibilityElementsHidden = (bool)((bool?)view.GetValue(AutomationProperties.ExcludedWithChildrenProperty) ?? _defaultAccessibilityElementsHidden);
+			AccessibilityRoleResolver.SetExcludedWithChildren(control, value);
 		}
 
 		static void MapAutomationPropertiesIsInAccessibleTree(IElementHandler handler, IElement element)

@@ -90,39 +90,35 @@ namespace Microsoft.Maui.Platform
 		{
 			var semantics = view?.Semantics;
 
-			// Null semantics (e.g. ClearValue): reverse any previous promotion so the layout
-			// stops announcing stale content and its children become navigable again.
 			if (semantics is null)
 			{
-				if (view is ILayout && platformView is not UIControl && platformView.IsAccessibilityElement)
+				// Clear what a previous semantics mapping set so a container stops announcing
+				// stale content and its children become navigable again.
+				if (AccessibilityRoleResolver.IsTracked(platformView)
+					&& view is ILayout or IContentView
+					&& platformView is MauiView clearedMauiView)
 				{
-					platformView.IsAccessibilityElement = false;
-					platformView.AccessibilityLabel = null;
-					platformView.AccessibilityHint = null;
-					if (platformView is MauiView clearedMauiView)
-					{
-						clearedMauiView.SynthesizeAccessibilityLabelFromChildren = false;
-					}
+					clearedMauiView.SynthesizeAccessibilityLabelFromChildren = false;
+					clearedMauiView.AccessibilityLabel = null;
+					clearedMauiView.AccessibilityHint = null;
 				}
 
+				AccessibilityRoleResolver.UpdateSemantics(platformView, view);
 				return;
 			}
 
+			var semanticsTarget = platformView;
+
 			// For layout containers with a Hint set, decide on an AccessibilityLabel that gives
 			// VoiceOver the children's content (matching Android TalkBack behavior).
-			// - If the developer explicitly set Description, respect it as the label — don't
-			//   second-guess by appending children. This preserves the pre-fix contract for
-			//   apps that deliberately set Description as a curated summary.
-			// - If only Hint is set (no Description), synthesize a label from the children's
-			//   text so VoiceOver reads "[children], [hint]" instead of just "[hint]".
-			// We gate on Hint only (not Description) so Description-only layouts retain their
-			// existing legacy-path behavior.
+			// - If the developer explicitly set Description, respect it as the label.
+			// - If only Hint is set, synthesize a label from the children's text so VoiceOver
+			//   reads "[children], [hint]" instead of just "[hint]".
 			if (view is ILayout layout &&
 				!string.IsNullOrWhiteSpace(semantics.Hint))
 			{
 				if (!string.IsNullOrWhiteSpace(semantics.Description))
 				{
-					// Explicit Description wins — honor the developer's curated label.
 					platformView.AccessibilityLabel = semantics.Description;
 					if (platformView is MauiView mauiViewWithDesc)
 					{
@@ -138,7 +134,6 @@ namespace Microsoft.Maui.Platform
 				}
 				else
 				{
-					// Non-MauiView platform view (rare for ILayout): fall back to one-shot snapshot.
 					var synthesizedLabel = SynthesizeAccessibilityLabelFromChildren(layout);
 					platformView.AccessibilityLabel = !string.IsNullOrWhiteSpace(synthesizedLabel)
 						? synthesizedLabel
@@ -147,43 +142,64 @@ namespace Microsoft.Maui.Platform
 
 				platformView.AccessibilityHint = semantics.Hint;
 
-				// Make the container the primary accessibility element so VoiceOver announces
-				// "[label], [hint]" as a single focus unit.
-				platformView.IsAccessibilityElement = true;
-
 				// If a TapGestureRecognizer was wired up first, GesturePlatformManager may have
-				// already set ShouldGroupAccessibilityChildren=true. Clear it now: once the layout
-				// is a leaf accessibility element the grouping flag is redundant, and some iOS
-				// versions silently drop the parent's accessibilityLabel/hint when both are set.
+				// already set ShouldGroupAccessibilityChildren=true. Some iOS versions silently drop
+				// the container's accessibilityLabel/hint when both are set.
 				platformView.ShouldGroupAccessibilityChildren = false;
+			}
+			else
+			{
+				if (platformView is MauiView mauiView)
+				{
+					mauiView.SynthesizeAccessibilityLabelFromChildren = false;
+				}
 
-				// Safe to early-return: an ILayout MAUI view never produces a UISearchBar/UIControl/
-				// UIStepper/UIPageControl platform view, so the internal UpdateSemantics branches for
-				// those types are not applicable here. Heading trait is explicitly applied below.
-				UpdateSemanticsHeading(platformView, semantics);
+				if (platformView is UISearchBar searchBar)
+				{
+					var textField = searchBar.GetSearchTextField();
+
+					if (textField is null)
+					{
+						return;
+					}
+
+					semanticsTarget = textField;
+				}
+
+				semanticsTarget.AccessibilityLabel = semantics.Description;
+				semanticsTarget.AccessibilityHint = semantics.Hint;
+			}
+
+			// A tracked view gets its heading synced by the resolver together with its role.
+			AccessibilityRoleResolver.UpdateSemantics(platformView, view);
+
+			if (!AccessibilityRoleResolver.IsTracked(platformView))
+			{
+				UpdateSemanticsHeading(semanticsTarget, semantics);
+			}
+		}
+
+		/// <summary>
+		/// Applies the Header trait for a resolved role. An explicitly excluded view is never an
+		/// element, so a Header trait would be meaningless there and is removed.
+		/// </summary>
+		internal static void UpdateSemanticsHeading(UIView platformView, Semantics semantics, AccessibilityRole role)
+		{
+			var target = platformView is UISearchBar searchBar ? searchBar.GetSearchTextField() : platformView;
+
+			if (target is null)
+			{
 				return;
 			}
 
-			// If a layout previously had Hint set (triggering the synthesis branch above which
-			// promotes the layout to an accessibility element) and the Hint/Description was later
-			// cleared, restore the layout to a non-leaf so VoiceOver can navigate into its children
-			// again. Layouts default to IsAccessibilityElement=false; the legacy path below only
-			// flips it to true and never back to false, so without this reset the layout would
-			// remain a silent leaf.
-			if (view is ILayout
-				&& platformView is not UIControl
-				&& string.IsNullOrWhiteSpace(semantics.Hint)
-				&& string.IsNullOrWhiteSpace(semantics.Description)
-				&& platformView.IsAccessibilityElement)
+			if (role != AccessibilityRole.NotElement)
 			{
-				platformView.IsAccessibilityElement = false;
-				if (platformView is MauiView demotedMauiView)
-				{
-					demotedMauiView.SynthesizeAccessibilityLabelFromChildren = false;
-				}
+				UpdateSemanticsHeading(target, semantics);
 			}
-
-			UpdateSemantics(platformView, semantics);
+			else if ((target.AccessibilityTraits & UIAccessibilityTrait.Header) == UIAccessibilityTrait.Header)
+			{
+				target.AccessibilityTraits &= ~UIAccessibilityTrait.Header;
+			}
 		}
 
 		internal static void UpdateSemantics(this UIView platformView, Semantics? semantics)

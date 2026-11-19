@@ -997,13 +997,40 @@ namespace Microsoft.Maui.Platform
 		/// </summary>
 		internal bool SynthesizeAccessibilityLabelFromChildren { get; set; }
 
+		/// <summary>
+		/// Set by <see cref="AccessibilityRoleResolver"/> when this container has semantics and its
+		/// participation depends on its content: it is an element when the content is passive and a
+		/// labelled semantic group when it has actionable descendants. Resolved on each query so
+		/// content and gesture changes are observed.
+		/// </summary>
+		internal bool DeferAccessibilityElementToContent { get; set; }
+
+		/// <inheritdoc/>
+		public override bool IsAccessibilityElement
+		{
+			get => DeferAccessibilityElementToContent
+				? AccessibilityRoleResolver.ResolveContainerIsAccessibilityElement(this)
+				: base.IsAccessibilityElement;
+			set => base.IsAccessibilityElement = value;
+		}
+
+		// UIKit does not bind accessibilityContainerType on UIView. A container type is only
+		// honoured when the view is not itself an element, which is exactly when a deferred
+		// container's label/hint must be announced on entering its group.
+		[Export("accessibilityContainerType")]
+		UIAccessibilityContainerType GetAccessibilityContainerType() =>
+			DeferAccessibilityElementToContent ? UIAccessibilityContainerType.SemanticGroup : UIAccessibilityContainerType.None;
+
 		/// <inheritdoc/>
 		public override string? AccessibilityLabel
 		{
 			get
 			{
+				// A synthesized label only makes sense for a single element; a semantic group's
+				// children are announced individually.
 				if (SynthesizeAccessibilityLabelFromChildren
-					&& CrossPlatformLayout is ILayout layout)
+					&& CrossPlatformLayout is ILayout layout
+					&& IsAccessibilityElement)
 				{
 					var synthesized = SemanticExtensions.SynthesizeAccessibilityLabelFromChildren(layout);
 					if (!string.IsNullOrWhiteSpace(synthesized))
