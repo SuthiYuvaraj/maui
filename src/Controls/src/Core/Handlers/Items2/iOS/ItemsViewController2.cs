@@ -187,14 +187,6 @@ namespace Microsoft.Maui.Controls.Handlers.Items2
 			{
 				AutomaticallyAdjustsScrollViewInsets = false;
 			}
-			else
-			{
-				// We set this property to keep iOS from trying to be helpful about insetting all the 
-				// CollectionView content when we're in landscape mode (to avoid the notch)
-				// The SetUseSafeArea Platform Specific is already taking care of this for us 
-				// That said, at some point it's possible folks will want a PS for controlling this behavior
-				CollectionView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
-			}
 
 			CollectionView.ScrollsToTop = true;
 

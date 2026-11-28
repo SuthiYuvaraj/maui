@@ -24,6 +24,35 @@ namespace Microsoft.Maui.DeviceTests
 	public partial class CollectionViewTests
 	{
 		[Fact]
+		public async Task CollectionViewPreservesUIKitContentInsetAdjustmentBehavior()
+		{
+			SetupBuilder();
+
+			var collectionView = new CollectionView
+			{
+				HeightRequest = 200,
+				WidthRequest = 300,
+				ItemsSource = new[] { "Item 1", "Item 2", "Item 3" }
+			};
+
+			await CreateHandlerAndAddToWindow<CollectionViewHandler2>(collectionView, handler =>
+			{
+				var nativeCollectionView = handler.Controller.CollectionView;
+
+				Assert.Equal(
+					UIScrollViewContentInsetAdjustmentBehavior.Automatic,
+					nativeCollectionView.ContentInsetAdjustmentBehavior);
+
+				nativeCollectionView.ContentInsetAdjustmentBehavior =
+					UIScrollViewContentInsetAdjustmentBehavior.Always;
+
+				Assert.Equal(
+					UIScrollViewContentInsetAdjustmentBehavior.Always,
+					nativeCollectionView.ContentInsetAdjustmentBehavior);
+			});
+		}
+
+		[Fact]
 		public async Task RemainingItemsThresholdLoadsPagesWhileScrolling()
 		{
 			EnsureHandlerCreated(builder =>
